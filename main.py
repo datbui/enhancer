@@ -29,8 +29,8 @@ FLAGS = flags.FLAGS
 
 
 def load_files(config):
-    # path = os.path.join("./data", config.dataset, "train", "*.jpg")
-    path = os.path.join("./data/test/*.jpg")
+    path = os.path.join("./data", config.dataset, "train", "*.jpg")
+    # path = os.path.join("./data/test/*.jpg")
     files = sorted(glob(path))
     return files
 
@@ -90,9 +90,13 @@ def run_training(config, session):
     batch_number = min(len(input_data), config.train_size) // config.batch_size
     print('Total number of batches  %d' % batch_number)
 
-    counter = 0
-    srcnn = SRCNN(session, config.batch_size, config.image_size, config.image_resize, config.color_channels,
-                  config.learning_rate)
+    step = 0
+    srcnn = SRCNN(session, config.batch_size, config.image_size, config.image_resize, config.color_channels, config.learning_rate)
+
+    if srcnn.load(config.checkpoint_dir, config.dataset):
+        print(" [*] Load SUCCESS")
+    else:
+        print(" [!] Load failed...")
 
     start_time = time.time()
 
@@ -109,11 +113,12 @@ def run_training(config, session):
 
             err, predict = srcnn.train(input_resized_images, input_images)
 
-            counter += 1
-            if counter % 10 == 0:
+            step += 1
+            if step % 10 == 0:
                 save_images((predict), [8, 8], './samples/outputs_%d_.jpg' % idx)
+                srcnn.save(config.checkpoint_dir, config.dataset, step)
                 print("Epoch: [%2d], step: [%2d], epoch_time: [%4.4f], time: [%4.4f], loss: [%.8f]" \
-                      % ((epoch + 1), counter, time.time() - epoch_start_time, time.time() - start_time, err))
+                      % ((epoch + 1), step, time.time() - epoch_start_time, time.time() - start_time, err))
 
 
 def get_batch(batch_index, batch_size, data):

@@ -1,18 +1,15 @@
+import os
 import tensorflow as tf
 
 
 class SRCNN:
-    def __init__(self, session, batch_size, image_size, image_resize, color_channels, learning_rate,
-                 checkpoint_dir=None, sample_dir=None):
+    def __init__(self, session, batch_size, image_size, image_resize, color_channels, learning_rate):
         self.session = session
         self.batch_size = batch_size
         self.image_size = image_size
         self.image_resize = image_resize
 
         self.learning_rate = learning_rate
-
-        self.checkpoint_dir = checkpoint_dir
-        self.sample_dir = sample_dir
 
         # TODO rewrite generate function
         t_vars = tf.trainable_variables()
@@ -63,3 +60,29 @@ class SRCNN:
     def train(self, lr_images, hr_images):
         _, loss, predict = self.session.run([self.train_op, self.j, self.h], feed_dict={self.inputs: lr_images, self.hr_images: hr_images})
         return loss, predict
+
+    def save(self, checkpoint_dir, dataset_name, step):
+        model_name = "SRCNN.model"
+        model_dir = "%s_%s" % (dataset_name, self.batch_size)
+        checkpoint_dir = os.path.join(checkpoint_dir, model_dir)
+
+        if not os.path.exists(checkpoint_dir):
+            os.makedirs(checkpoint_dir)
+
+        self.saver.save(self.session,
+                        os.path.join(checkpoint_dir, model_name),
+                        global_step=step)
+
+    def load(self, checkpoint_dir, dataset_name):
+        print(" [*] Reading checkpoints...")
+
+        model_dir = "%s_%s" % (dataset_name, self.batch_size)
+        checkpoint_dir = os.path.join(checkpoint_dir, model_dir)
+
+        ckpt = tf.train.get_checkpoint_state(checkpoint_dir)
+        if ckpt and ckpt.model_checkpoint_path:
+            ckpt_name = os.path.basename(ckpt.model_checkpoint_path)
+            self.saver.restore(self.session, os.path.join(checkpoint_dir, ckpt_name))
+            return True
+        else:
+            return False
