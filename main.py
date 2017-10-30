@@ -102,7 +102,7 @@ def run_training(config, session):
         for idx in xrange(0, batch_number):
 
             batch_files = get_batch(idx, config.batch_size, input_data);
-            images = [get_image(batch_file, config.image_size) for batch_file in batch_files]
+            images = [get_image(batch_file, config.image_size, config.color_channels == 1) for batch_file in batch_files]
             resized_images = [do_resize(xx, [config.image_resize, ] * 2) for xx in images]
             input_images = pre_process(images)
             input_resized_images = pre_process(resized_images)
@@ -111,10 +111,9 @@ def run_training(config, session):
 
             counter += 1
             if counter % 10 == 0:
+                save_images((predict), [8, 8], './samples/outputs_%d_.jpg' % idx)
                 print("Epoch: [%2d], step: [%2d], epoch_time: [%4.4f], time: [%4.4f], loss: [%.8f]" \
                       % ((epoch + 1), counter, time.time() - epoch_start_time, time.time() - start_time, err))
-
-            save_images((predict), [8, 8], './samples/outputs_%d_.jpg' % idx)
 
 
 def get_batch(batch_index, batch_size, data):

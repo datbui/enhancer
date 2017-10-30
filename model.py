@@ -30,7 +30,7 @@ class SRCNN:
             'b3': tf.Variable(tf.zeros([color_channels]), name='cnn_b3')
         }
 
-        self.inputs = tf.placeholder(tf.float32, [self.batch_size, self.image_resize, self.image_resize, color_channels], name='resized_images')
+        self.inputs = tf.placeholder(tf.float32, [self.batch_size, self.image_resize, self.image_resize, color_channels], name='low_resolution_images')
         self.lr_images = tf.image.resize_images(self.inputs, [self.image_size, self.image_size], tf.image.ResizeMethod.BICUBIC)
         self.hr_images = tf.placeholder(tf.float32, [self.batch_size, self.image_size, self.image_size, color_channels], name='high_resolution_images')
         label_size = self.image_size - sum(self.filter_shapes) + len(self.filter_shapes)
