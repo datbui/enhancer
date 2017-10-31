@@ -167,17 +167,20 @@ def prepare_data_dir(path='./data'):
         os.mkdir(path)
 
 
+def download_dataset(dataset_names):
+    prepare_data_dir()
+    if 'celebA' in dataset_names:
+        download_celeb_a('./data')
+    if 'lsun' in dataset_names:
+        download_lsun('./data')
+    if 'mnist' in dataset_names:
+        download_mnist('./data')
+
+
 if __name__ == '__main__':
     args = parser.parse_args()
 
     if not args.datasets:
         raise Exception(" [!] You need to specify the name of datasets to download")
 
-    prepare_data_dir()
-
-    if 'celebA' in args.datasets:
-        download_celeb_a('./data')
-    if 'lsun' in args.datasets:
-        download_lsun('./data')
-    if 'mnist' in args.datasets:
-        download_mnist('./data')
+    download_dataset(args.datasets)
