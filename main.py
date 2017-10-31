@@ -8,7 +8,6 @@ from six.moves import xrange
 
 from download import download_dataset
 from model import SRCNN
-from utils import load_files, get_image, save_images, do_resize, pre_process, make_tfrecords
 
 pp = pprint.PrettyPrinter()
 
