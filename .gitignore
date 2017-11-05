@@ -100,7 +100,8 @@ ENV/
 # mypy
 .mypy_cache/
 
-/data
-/samples
-/tfrecords
-/checkpoint
+# Image repositories
+data/
+samples/
+tfrecords/
+checkpoint/
