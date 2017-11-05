@@ -2,22 +2,16 @@ import os
 import pprint
 import time
 
-import numpy as np
 import tensorflow as tf
-from six.moves import xrange
 
+from config import FLAGS
 from download import download_dataset
 from model import SRCNN
-from utils import load_files, get_image, save_images, do_resize, pre_process, get_batch
-from  config import FLAGS
+from utils import load_files, save_images, parse_function
 
 pp = pprint.PrettyPrinter()
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-
-
-def get_batch(batch_index, batch_size, data):
-    return data[batch_index * batch_size:(batch_index + 1) * batch_size]
 
 
 def run_training(config, session):
@@ -25,7 +19,6 @@ def run_training(config, session):
     batch_number = min(len(input_data), config.train_size) // config.batch_size
     print('Total number of batches  %d' % batch_number)
 
-    step = 0
     srcnn = SRCNN(session, config.batch_size, config.image_size, config.image_resize, config.color_channels, config.learning_rate)
 
     if srcnn.load(config.checkpoint_dir, config.dataset):
@@ -33,27 +26,45 @@ def run_training(config, session):
     else:
         print(" [!] Load failed...")
 
+    assert os.path.exists(config.tfrecord_dir)
+    assert os.path.exists(os.path.join(config.tfrecord_dir, config.dataset))
+
+    filenames = load_files(os.path.join(config.tfrecord_dir, config.dataset), 'tfrecord')
+
+    dataset = tf.contrib.data.TFRecordDataset(filenames)
+    dataset = dataset.map(parse_function)
+    dataset = dataset.repeat(config.epoch)
+    # dataset = dataset.shuffle(buffer_size=10000)
+
+    iterator = dataset.make_initializable_iterator()
+    next_element = iterator.get_next()
+    session.run(iterator.initializer)
+
+    step = 0
+    batch = 0
+    epoch = 0
     start_time = time.time()
+    epoch_start_time = time.time()
+    while True:
+        try:
+            lr_images, hr_images = session.run(next_element)
+            err, predict = srcnn.train(lr_images, hr_images)
 
-    for epoch in xrange(config.epoch):
-
-        epoch_start_time = time.time()
-        for idx in xrange(0, batch_number):
-
-            batch_files = get_batch(idx, config.batch_size, input_data)
-            images = [get_image(batch_file, config.image_size, config.color_channels == 1) for batch_file in batch_files]
-            resized_images = [do_resize(xx, [config.image_resize, ] * 2) for xx in images]
-            input_images = pre_process(images)
-            input_resized_images = pre_process(resized_images)
-
-            err, predict = srcnn.train(input_resized_images, input_images)
-
-            step += 1
-            if step % 10 == 0:
-                save_images(predict, [8, 8], './samples/outputs_%d_.jpg' % idx)
+            if batch == 0:
+                save_images(predict, [8, 8], './samples/epoch_%3d.jpg' % epoch)
+            if step % 100 == 0:
                 srcnn.save(config.checkpoint_dir, config.dataset, step)
                 print("Epoch: [%5d], step: [%5d], epoch_time: [%4.4f], time: [%4.4f], loss: [%.8f]" \
                       % ((epoch + 1), step, time.time() - epoch_start_time, time.time() - start_time, err))
+            step += 1
+            batch += 1
+            if step % batch_number == 0:
+                epoch += 1
+                batch = 0
+                epoch_start_time = time.time()
+        except tf.errors.OutOfRangeError:
+            break
+
 
 
 def main(_):

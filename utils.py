@@ -113,7 +113,7 @@ def make_tfrecords(config=FLAGS):
             writer.write(record.SerializeToString())
 
 
-def _parse_function(proto):
+def parse_function(proto):
     features = {
         'hr_images': tf.FixedLenFeature((FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, FLAGS.color_channels),
                                      tf.float32),
@@ -135,7 +135,7 @@ def _test_tfrecords(config=FLAGS):
     filenames = load_files(os.path.join(config.tfrecord_dir, config.dataset), 'tfrecord')
 
     dataset = tf.contrib.data.TFRecordDataset(filenames)
-    dataset = dataset.map(_parse_function)
+    dataset = dataset.map(parse_function)
 
     iterator = dataset.make_initializable_iterator()
     next_element = iterator.get_next()
@@ -150,8 +150,9 @@ def _test_tfrecords(config=FLAGS):
             except tf.errors.OutOfRangeError:
                 break
 
+
 if __name__ == '__main__':
     print("start")
-    # make_tfrecords()
-    _test_tfrecords()
+    make_tfrecords()
+    # _test_tfrecords()
     print("finish")

@@ -42,6 +42,8 @@ class SRCNN:
         # Stochastic gradient descent with the standard backpropagation
         self.train_op = tf.train.GradientDescentOptimizer(self.learning_rate).minimize(self.j)
 
+        session.run(tf.global_variables_initializer())
+
         self.saver = tf.train.Saver()
 
     def model(self):
@@ -68,9 +70,7 @@ class SRCNN:
         if not os.path.exists(checkpoint_dir):
             os.makedirs(checkpoint_dir)
 
-        self.saver.save(self.session,
-                        os.path.join(checkpoint_dir, model_name),
-                        global_step=step)
+        self.saver.save(self.session, os.path.join(checkpoint_dir, model_name), global_step=step)
 
     def load(self, checkpoint_dir, dataset_name):
         print(" [*] Reading checkpoints...")
