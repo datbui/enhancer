@@ -1,25 +1,12 @@
-import ntpath
 import os
 from glob import glob
 
 import numpy as np
 import scipy.misc
 import tensorflow as tf
+from six.moves import xrange
 
-flags = tf.app.flags
-flags.DEFINE_string("dataset", "celebA", "The name of dataset [celebA, mnist, lsun]")
-flags.DEFINE_string("checkpoint_dir", "checkpoint", "Directory name to save the checkpoints [checkpoint]")
-flags.DEFINE_string("sample_dir", "samples", "Directory name to save the image samples [samples]")
-flags.DEFINE_string("data_dir", "data", "Directory name to download the train/test datasets [data]")
-flags.DEFINE_string("tfrecord_dir", "tfrecords", "Directory name to store the TFRecord data [tfrecords]")
-flags.DEFINE_integer("batch_size", 64, "The size of batch images [64]")
-flags.DEFINE_integer("image_size", 128, "The size of image to use (will be center cropped) [128]")
-flags.DEFINE_integer("image_resize", 64, "The size of image to resize")
-flags.DEFINE_integer("color_channels", 1, "The number of image color channels")
-flags.DEFINE_integer("train_size", np.inf, "The size of train images [np.inf]")
-flags.DEFINE_integer("epoch", 25, "Epoch to train [25]")
-flags.DEFINE_float("learning_rate", 1e-4, "The learning rate of gradient descent algorithm [1e-4]")
-FLAGS = flags.FLAGS
+from config import FLAGS
 
 
 def load_files(path, extension):
@@ -81,6 +68,25 @@ def _post_process(images):
 def _bytes_feature(value):
     return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value.tostring()]))
 
+
+def _float_feature(value):
+    return tf.train.Feature(float_list=tf.train.FloatList(value=value.flatten()))
+
+
+def get_batch(batch_index, batch_size, data):
+    return data[batch_index * batch_size:(batch_index + 1) * batch_size]
+
+
+def _prepare_batch(batch_files, config):
+    images = [get_image(batch_file, config.image_size, config.color_channels == 1) for batch_file in batch_files]
+    low_quality_images = [do_resize(xx, [config.image_resize, ] * 2) for xx in images]
+    images = pre_process(images)
+    low_quality_images = pre_process(low_quality_images)
+    lr_images = _float_feature(low_quality_images)
+    hr_images = _float_feature(images)
+    return lr_images, hr_images
+
+
 def make_tfrecords(config=FLAGS):
     if not os.path.exists(config.tfrecord_dir):
         os.makedirs(config.tfrecord_dir)
@@ -88,48 +94,64 @@ def make_tfrecords(config=FLAGS):
         os.makedirs(os.path.join(config.tfrecord_dir, config.dataset))
 
     files = load_files(os.path.join(config.data_dir, config.dataset, 'train'), 'jpg')
-    for file in files:
-        print(file)
-        label_image = get_image(file, config.image_size, config.color_channels == 1)
-        label_image = pre_process(label_image)
-        low_quality_image = do_resize(label_image, [config.image_resize, ] * 2)
-        low_quality_image = pre_process(low_quality_image)
-        ipt_img = _bytes_feature(low_quality_image)
-        label = _bytes_feature(label_image)
-        record = tf.train.Example(features=tf.train.Features(feature={'image': ipt_img, 'label': label}))
+    batch_number = min(len(files), config.train_size) // config.batch_size
+    print('Batch number %d' % batch_number)
+    for idx in xrange(0, batch_number):
+        if idx % 10 == 0:
+            print('batch %3d' % idx)
 
-        name = ntpath.basename(file).split('.')[0]
-        tfrecord_filename = os.path.join(config.tfrecord_dir, FLAGS.dataset, name + '.tfrecord')
+        batch_files = get_batch(idx, config.batch_size, files)
+        lr_images, hr_images = _prepare_batch(batch_files, config)
+
+        # Create a feature and record
+        feature = {'lr_images': lr_images, 'hr_images': hr_images}
+        record = tf.train.Example(features=tf.train.Features(feature=feature))
+
+        # name = ntpath.basename(file).split('.')[0]
+        tfrecord_filename = os.path.join(config.tfrecord_dir, config.dataset, str(idx) + '.tfrecord')
         with tf.python_io.TFRecordWriter(tfrecord_filename) as writer:
             writer.write(record.SerializeToString())
+
+
+def _parse_function(proto):
+    features = {
+        'hr_images': tf.FixedLenFeature((FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, FLAGS.color_channels),
+                                     tf.float32),
+        'lr_images': tf.FixedLenFeature((FLAGS.batch_size, FLAGS.image_resize, FLAGS.image_resize, FLAGS.color_channels),
+                                     tf.float32),
+    }
+    parsed_features = tf.parse_single_example(proto, features)
+
+    lr_images = parsed_features['lr_images']
+    hr_images = parsed_features['hr_images']
+
+    return lr_images, hr_images
 
 
 def _test_tfrecords(config=FLAGS):
     assert os.path.exists(config.tfrecord_dir)
     assert os.path.exists(os.path.join(config.tfrecord_dir, config.dataset))
 
-    tfrecords_filename = load_files(os.path.join(config.tfrecord_dir, config.dataset), 'tfrecord')
+    filenames = load_files(os.path.join(config.tfrecord_dir, config.dataset), 'tfrecord')
 
-    # record_iterator = tf.python_io.tf_record_iterator(path='tfrecords/celebA/000001.tfrecord')
-    record_iterator = tf.python_io.tf_record_iterator(path=os.path.join(config.tfrecord_dir, config.dataset))
+    dataset = tf.contrib.data.TFRecordDataset(filenames)
+    dataset = dataset.map(_parse_function)
 
-    for record in record_iterator:
-        example = tf.train.Example()
-        example.ParseFromString(record)
+    iterator = dataset.make_initializable_iterator()
+    next_element = iterator.get_next()
 
-        image = (example.features.feature['image'].bytes_list.value[0])
-        label = (example.features.feature['label'].bytes_list.value[0])
-        image = np.fromstring(image, dtype=np.float64)
-        image = image.reshape((config.image_resize, config.image_resize, config.color_channels))
-        label = np.fromstring(label, dtype=np.float64)
-        label = label.reshape((config.image_size, config.image_size, config.color_channels))
-        print('Image')
-        print(image.shape)
-        print('Label')
-        print(label.shape)
-# def _test_dataset(config=FLAGS)
+    with tf.Session() as sess:
+        sess.run(tf.global_variables_initializer())
+        sess.run(iterator.initializer)
+        while True:
+            try:
+                img, lbl = sess.run(next_element)
+                print(img.shape)
+            except tf.errors.OutOfRangeError:
+                break
+
 if __name__ == '__main__':
     print("start")
-    make_tfrecords()
-    # _test_tfrecords()
+    # make_tfrecords()
+    _test_tfrecords()
     print("finish")

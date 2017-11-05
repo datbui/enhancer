@@ -8,26 +8,12 @@ from six.moves import xrange
 
 from download import download_dataset
 from model import SRCNN
-from utils import load_files, get_image, save_images, do_resize, pre_process
+from utils import load_files, get_image, save_images, do_resize, pre_process, get_batch
+from  config import FLAGS
 
 pp = pprint.PrettyPrinter()
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-
-flags = tf.app.flags
-flags.DEFINE_string("dataset", "celebA", "The name of dataset [celebA, mnist, lsun]")
-flags.DEFINE_string("checkpoint_dir", "checkpoint", "Directory name to save the checkpoints [checkpoint]")
-flags.DEFINE_string("sample_dir", "samples", "Directory name to save the image samples [samples]")
-flags.DEFINE_string("data_dir", "data", "Directory name to download the train/test datasets [data]")
-flags.DEFINE_string("tfrecord_dir", "tfrecords", "Directory name to store the TFRecord data [tfrecords]")
-flags.DEFINE_integer("batch_size", 64, "The size of batch images [64]")
-flags.DEFINE_integer("image_size", 128, "The size of image to use (will be center cropped) [128]")
-flags.DEFINE_integer("image_resize", 64, "The size of image to resize")
-flags.DEFINE_integer("color_channels", 1, "The number of image color channels")
-flags.DEFINE_integer("train_size", np.inf, "The size of train images [np.inf]")
-flags.DEFINE_integer("epoch", 25, "Epoch to train [25]")
-flags.DEFINE_float("learning_rate", 1e-4, "The learning rate of gradient descent algorithm [1e-4]")
-FLAGS = flags.FLAGS
 
 
 def get_batch(batch_index, batch_size, data):
@@ -54,7 +40,7 @@ def run_training(config, session):
         epoch_start_time = time.time()
         for idx in xrange(0, batch_number):
 
-            batch_files = get_batch(idx, config.batch_size, input_data);
+            batch_files = get_batch(idx, config.batch_size, input_data)
             images = [get_image(batch_file, config.image_size, config.color_channels == 1) for batch_file in batch_files]
             resized_images = [do_resize(xx, [config.image_resize, ] * 2) for xx in images]
             input_images = pre_process(images)
@@ -84,6 +70,7 @@ def main(_):
 
     # start the session
     with tf.Session() as sess:
+        sess.run(tf.global_variables_initializer())
         run_training(FLAGS, sess)
 
 
