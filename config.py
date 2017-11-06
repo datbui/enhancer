@@ -3,6 +3,8 @@ import numpy as np
 
 flags = tf.app.flags
 flags.DEFINE_string("dataset", "celebA", "The name of dataset [celebA, mnist, lsun]")
+flags.DEFINE_string("subset", "train", "The name of subset [train, validation, test]")
+flags.DEFINE_string("extension", "tif", "The file extension [tif, jpg....]")
 flags.DEFINE_string("checkpoint_dir", "checkpoint", "Directory name to save the checkpoints [checkpoint]")
 flags.DEFINE_string("sample_dir", "samples", "Directory name to save the image samples [samples]")
 flags.DEFINE_string("data_dir", "data", "Directory name to download the train/test datasets [data]")

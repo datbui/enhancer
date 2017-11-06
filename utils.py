@@ -28,6 +28,15 @@ def get_image(image_path, image_size, is_black_white=True):
     return do_resize(image, [image_size, image_size])
 
 
+def save_output(lr_img, prediction, hr_img, path):
+    h = max(hr_img.shape[0], prediction.shape[0], hr_img.shape[0])
+    eh_img = do_resize(_post_process(prediction), [h, hr_img.shape[1]])
+    lr_img = _post_process(lr_img)
+    hr_img = _post_process(hr_img)
+    out_img = np.concatenate((lr_img, eh_img, hr_img), axis=1)
+    return scipy.misc.imsave(path, out_img)
+
+
 def save_images(images, size, image_path):
     num_im = size[0] * size[1]
     return _imsave(images[:num_im], size, image_path)
@@ -61,8 +70,7 @@ def pre_process(images):
 
 def _post_process(images):
     post_processed = _unnormalize(images)
-    post_processed.squeeze()
-    return post_processed
+    return post_processed.squeeze()
 
 
 def _bytes_feature(value):
@@ -80,6 +88,7 @@ def get_batch(batch_index, batch_size, data):
 def _prepare_batch(batch_files, config):
     images = [get_image(batch_file, config.image_size, config.color_channels == 1) for batch_file in batch_files]
     low_quality_images = [do_resize(xx, [config.image_resize, ] * 2) for xx in images]
+    low_quality_images = [do_resize(xx, [config.image_size, ] * 2) for xx in low_quality_images]
     images = pre_process(images)
     low_quality_images = pre_process(low_quality_images)
     lr_images = _float_feature(low_quality_images)
@@ -93,7 +102,7 @@ def make_tfrecords(config=FLAGS):
     if not os.path.exists(os.path.join(config.tfrecord_dir, config.dataset)):
         os.makedirs(os.path.join(config.tfrecord_dir, config.dataset))
 
-    files = load_files(os.path.join(config.data_dir, config.dataset, 'train'), 'jpg')
+    files = load_files(os.path.join(config.data_dir, config.dataset, config.subset), config.extension)
     batch_number = min(len(files), config.train_size) // config.batch_size
     print('Batch number %d' % batch_number)
     for idx in xrange(0, batch_number):
@@ -117,7 +126,7 @@ def parse_function(proto):
     features = {
         'hr_images': tf.FixedLenFeature((FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, FLAGS.color_channels),
                                      tf.float32),
-        'lr_images': tf.FixedLenFeature((FLAGS.batch_size, FLAGS.image_resize, FLAGS.image_resize, FLAGS.color_channels),
+        'lr_images': tf.FixedLenFeature((FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, FLAGS.color_channels),
                                      tf.float32),
     }
     parsed_features = tf.parse_single_example(proto, features)

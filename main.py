@@ -7,7 +7,7 @@ import tensorflow as tf
 from config import FLAGS
 from download import download_dataset
 from model import SRCNN
-from utils import load_files, save_images, parse_function
+from utils import load_files, parse_function, save_output
 
 pp = pprint.PrettyPrinter()
 
@@ -15,11 +15,11 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 
 def run_training(config, session):
-    input_data = load_files(os.path.join(config.data_dir, config.dataset, 'train'), 'jpg')
+    input_data = load_files(os.path.join(config.data_dir, config.dataset, config.subset), config.extension)
     batch_number = min(len(input_data), config.train_size) // config.batch_size
     print('Total number of batches  %d' % batch_number)
 
-    srcnn = SRCNN(session, config.batch_size, config.image_size, config.image_resize, config.color_channels, config.learning_rate)
+    srcnn = SRCNN(session, config.batch_size, config.image_size, config.image_size, config.color_channels, config.learning_rate)
 
     if srcnn.load(config.checkpoint_dir, config.dataset):
         print(" [*] Load SUCCESS")
@@ -51,7 +51,7 @@ def run_training(config, session):
             err, predict = srcnn.train(lr_images, hr_images)
 
             if batch == 0:
-                save_images(predict, [8, 8], './samples/epoch_%3d.jpg' % epoch)
+                save_output(lr_images[0, :, :, :], predict[0, :, :, :], hr_images[0, :, :, :], './samples/epoch_%d.jpg' % epoch)
             if step % 100 == 0:
                 srcnn.save(config.checkpoint_dir, config.dataset, step)
                 print("Epoch: [%5d], step: [%5d], epoch_time: [%4.4f], time: [%4.4f], loss: [%.8f]" \
