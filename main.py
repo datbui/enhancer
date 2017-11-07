@@ -21,15 +21,15 @@ def run_training(config, session):
 
     srcnn = SRCNN(session, config.batch_size, config.image_size, config.image_size, config.color_channels, config.learning_rate)
 
-    if srcnn.load(config.checkpoint_dir, config.dataset):
+    if srcnn.load(config.checkpoint_dir, config.dataset, config.subset):
         print(" [*] Load SUCCESS")
     else:
         print(" [!] Load failed...")
 
     assert os.path.exists(config.tfrecord_dir)
-    assert os.path.exists(os.path.join(config.tfrecord_dir, config.dataset))
+    assert os.path.exists(os.path.join(config.tfrecord_dir, config.dataset, config.subset))
 
-    filenames = load_files(os.path.join(config.tfrecord_dir, config.dataset), 'tfrecord')
+    filenames = load_files(os.path.join(config.tfrecord_dir, config.dataset, config.subset), 'tfrecord')
 
     dataset = tf.contrib.data.TFRecordDataset(filenames)
     dataset = dataset.map(parse_function)
@@ -51,11 +51,12 @@ def run_training(config, session):
             err, predict = srcnn.train(lr_images, hr_images)
 
             if batch == 0:
-                save_output(lr_images[0, :, :, :], predict[0, :, :, :], hr_images[0, :, :, :], './samples/epoch_%d.jpg' % epoch)
+                filename = ('epoch_%d.jpg' % epoch)
+                save_output(lr_images[0, :, :, :], predict[0, :, :, :], hr_images[0, :, :, :], os.path.join(config.sample_dir, config.dataset, config.subset, filename))
             if step % 100 == 0:
-                srcnn.save(config.checkpoint_dir, config.dataset, step)
+                srcnn.save(config.checkpoint_dir, config.dataset, config.subset, step)
                 print("Epoch: [%5d], step: [%5d], epoch_time: [%4.4f], time: [%4.4f], loss: [%.8f]" \
-                      % ((epoch + 1), step, time.time() - epoch_start_time, time.time() - start_time, err))
+                      % (epoch, step, time.time() - epoch_start_time, time.time() - start_time, err))
             step += 1
             batch += 1
             if step % batch_number == 0:
@@ -72,8 +73,8 @@ def main(_):
 
     if not os.path.exists(FLAGS.checkpoint_dir):
         os.makedirs(FLAGS.checkpoint_dir)
-    if not os.path.exists(FLAGS.sample_dir):
-        os.makedirs(FLAGS.sample_dir)
+    if not os.path.exists(os.path.join(FLAGS.sample_dir, FLAGS.dataset, FLAGS.subset)):
+        os.makedirs(os.path.join(FLAGS.sample_dir, FLAGS.dataset, FLAGS.subset))
     if not os.path.exists(os.path.join(FLAGS.data_dir, FLAGS.dataset)):
         download_dataset(FLAGS.dataset)
     if not os.path.exists(FLAGS.tfrecord_dir):

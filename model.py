@@ -15,7 +15,7 @@ class SRCNN:
         t_vars = tf.trainable_variables()
 
         # Build model
-        self.filter_shapes = [9, 1, 5]
+        self.filter_shapes = [1, 2, 1]
         self.weights = {
             'w1': tf.Variable(tf.random_normal([self.filter_shapes[0], self.filter_shapes[0], color_channels, 64], stddev=1e-3), name='cnn_w1'),
             'w2': tf.Variable(tf.random_normal([self.filter_shapes[1], self.filter_shapes[1], 64, 32], stddev=1e-3), name='cnn_w2'),
@@ -40,7 +40,7 @@ class SRCNN:
         self.j = tf.losses.mean_squared_error(self.label_images, self.h)
 
         # Stochastic gradient descent with the standard backpropagation
-        self.train_op = tf.train.GradientDescentOptimizer(self.learning_rate).minimize(self.j)
+        self.train_op = tf.train.AdamOptimizer(self.learning_rate).minimize(self.j)
 
         session.run(tf.global_variables_initializer())
 
@@ -62,9 +62,9 @@ class SRCNN:
         _, loss, predict = self.session.run([self.train_op, self.j, self.h], feed_dict={self.inputs: lr_images, self.hr_images: hr_images})
         return loss, predict
 
-    def save(self, checkpoint_dir, dataset_name, step):
+    def save(self, checkpoint_dir, dataset_name, subset_name, step):
         model_name = "SRCNN.model"
-        model_dir = "%s_%s" % (dataset_name, self.batch_size)
+        model_dir = "%s_%s_%s" % (dataset_name, subset_name, self.batch_size)
         checkpoint_dir = os.path.join(checkpoint_dir, model_dir)
 
         if not os.path.exists(checkpoint_dir):
@@ -72,10 +72,10 @@ class SRCNN:
 
         self.saver.save(self.session, os.path.join(checkpoint_dir, model_name), global_step=step)
 
-    def load(self, checkpoint_dir, dataset_name):
+    def load(self, checkpoint_dir, dataset_name, subset_name):
         print(" [*] Reading checkpoints...")
 
-        model_dir = "%s_%s" % (dataset_name, self.batch_size)
+        model_dir = "%s_%s_%s" % (dataset_name, subset_name, self.batch_size)
         checkpoint_dir = os.path.join(checkpoint_dir, model_dir)
 
         ckpt = tf.train.get_checkpoint_state(checkpoint_dir)

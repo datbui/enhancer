@@ -99,8 +99,8 @@ def _prepare_batch(batch_files, config):
 def make_tfrecords(config=FLAGS):
     if not os.path.exists(config.tfrecord_dir):
         os.makedirs(config.tfrecord_dir)
-    if not os.path.exists(os.path.join(config.tfrecord_dir, config.dataset)):
-        os.makedirs(os.path.join(config.tfrecord_dir, config.dataset))
+    if not os.path.exists(os.path.join(config.tfrecord_dir, config.dataset, config.subset)):
+        os.makedirs(os.path.join(config.tfrecord_dir, config.dataset, config.subset))
 
     files = load_files(os.path.join(config.data_dir, config.dataset, config.subset), config.extension)
     batch_number = min(len(files), config.train_size) // config.batch_size
@@ -117,7 +117,8 @@ def make_tfrecords(config=FLAGS):
         record = tf.train.Example(features=tf.train.Features(feature=feature))
 
         # name = ntpath.basename(file).split('.')[0]
-        tfrecord_filename = os.path.join(config.tfrecord_dir, config.dataset, str(idx) + '.tfrecord')
+        tfrecord_filename = os.path.join(config.tfrecord_dir, config.dataset, config.subset, str(idx) + '.tfrecord')
+        print(tfrecord_filename)
         with tf.python_io.TFRecordWriter(tfrecord_filename) as writer:
             writer.write(record.SerializeToString())
 
