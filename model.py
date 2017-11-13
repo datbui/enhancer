@@ -3,11 +3,10 @@ import tensorflow as tf
 
 
 class SRCNN:
-    def __init__(self, session, batch_size, image_size, image_resize, color_channels, learning_rate):
+    def __init__(self, session, batch_size, image_size, channels, learning_rate):
         self.session = session
         self.batch_size = batch_size
         self.image_size = image_size
-        self.image_resize = image_resize
 
         self.learning_rate = learning_rate
 
@@ -17,27 +16,25 @@ class SRCNN:
         # Build model
         self.filter_shapes = [1, 2, 1]
         self.weights = {
-            'w1': tf.Variable(tf.random_normal([self.filter_shapes[0], self.filter_shapes[0], color_channels, 64], stddev=1e-3), name='cnn_w1'),
+            'w1': tf.Variable(tf.random_normal([self.filter_shapes[0], self.filter_shapes[0], channels, 64], stddev=1e-3), name='cnn_w1'),
             'w2': tf.Variable(tf.random_normal([self.filter_shapes[1], self.filter_shapes[1], 64, 32], stddev=1e-3), name='cnn_w2'),
-            'w3': tf.Variable(tf.random_normal([self.filter_shapes[2], self.filter_shapes[2], 32, color_channels], stddev=1e-3), name='cnn_w3')
+            'w3': tf.Variable(tf.random_normal([self.filter_shapes[2], self.filter_shapes[2], 32, channels], stddev=1e-3), name='cnn_w3')
         }
         self.biases = {
             'b1': tf.Variable(tf.zeros([64]), name='cnn_b1'),
             'b2': tf.Variable(tf.zeros([32]), name='cnn_b2'),
-            'b3': tf.Variable(tf.zeros([color_channels]), name='cnn_b3')
+            'b3': tf.Variable(tf.zeros([channels]), name='cnn_b3')
         }
 
-        self.inputs = tf.placeholder(tf.float32, [self.batch_size, self.image_size, self.image_size, color_channels], name='low_resolution_images')
+        self.inputs = tf.placeholder(tf.float32, [self.batch_size, self.image_size, self.image_size, channels], name='low_resolution_images')
         self.lr_images = self.inputs
-        self.hr_images = tf.placeholder(tf.float32, [self.batch_size, self.image_size, self.image_size, color_channels], name='high_resolution_images')
-        label_size = self.image_size - sum(self.filter_shapes) + len(self.filter_shapes)
-        self.label_images = tf.image.resize_images(self.hr_images, [label_size, label_size], tf.image.ResizeMethod.BICUBIC)
+        self.hr_images = tf.placeholder(tf.float32, [self.batch_size, self.image_size, self.image_size, channels], name='high_resolution_images')
 
         # Prediction
         self.h = self.model()
 
         # Loss function
-        self.j = tf.losses.mean_squared_error(self.label_images, self.h)
+        self.j = tf.losses.mean_squared_error(self.hr_images, self.h)
 
         # Stochastic gradient descent with the standard backpropagation
         self.train_op = tf.train.AdamOptimizer(self.learning_rate).minimize(self.j)
@@ -47,11 +44,11 @@ class SRCNN:
         self.saver = tf.train.Saver()
 
     def model(self):
-        conv1 = tf.nn.bias_add(tf.nn.conv2d(self.lr_images, self.weights['w1'], strides=[1, 1, 1, 1], padding='VALID'), self.biases['b1'], name='add_bias_1')
+        conv1 = tf.nn.bias_add(tf.nn.conv2d(self.lr_images, self.weights['w1'], strides=[1, 1, 1, 1], padding='SAME'), self.biases['b1'], name='add_bias_1')
         conv1r = tf.nn.relu(conv1)
-        conv2 = tf.nn.bias_add(tf.nn.conv2d(conv1r, self.weights['w2'], strides=[1, 1, 1, 1], padding='VALID'), self.biases['b2'], name='add_bias_2')
+        conv2 = tf.nn.bias_add(tf.nn.conv2d(conv1r, self.weights['w2'], strides=[1, 1, 1, 1], padding='SAME'), self.biases['b2'], name='add_bias_2')
         conv2r = tf.nn.relu(conv2)
-        conv3 = tf.nn.bias_add(tf.nn.conv2d(conv2r, self.weights['w3'], strides=[1, 1, 1, 1], padding='VALID'), self.biases['b3'], name='add_bias_3')
+        conv3 = tf.nn.bias_add(tf.nn.conv2d(conv2r, self.weights['w3'], strides=[1, 1, 1, 1], padding='SAME'), self.biases['b3'], name='add_bias_3')
         return conv3
 
     def set_learning_rate(self, learning_rate):
