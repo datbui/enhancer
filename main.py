@@ -7,7 +7,7 @@ import tensorflow as tf
 from config import FLAGS
 from download import download_dataset
 from model import SRCNN
-from utils import load_files, parse_function, save_output
+from utils import load_files, parse_function, save_output, save_config
 
 pp = pprint.PrettyPrinter()
 
@@ -29,12 +29,15 @@ def run_training(config, session):
     assert os.path.exists(config.tfrecord_dir)
     assert os.path.exists(os.path.join(config.tfrecord_dir, config.dataset, config.subset))
 
+    save_config(config)
+
     filenames = load_files(os.path.join(config.tfrecord_dir, config.dataset, config.subset), 'tfrecord')
 
     dataset = tf.contrib.data.TFRecordDataset(filenames)
     dataset = dataset.map(parse_function)
     dataset = dataset.repeat(config.epoch)
-    # dataset = dataset.shuffle(buffer_size=10000)
+    dataset = dataset.shuffle(buffer_size=10000)
+    dataset = dataset.batch(config.batch_size)
 
     iterator = dataset.make_initializable_iterator()
     next_element = iterator.get_next()
@@ -47,7 +50,7 @@ def run_training(config, session):
     epoch_start_time = time.time()
     while True:
         try:
-            lr_images, hr_images = session.run(next_element)
+            lr_images, hr_images, names = session.run(next_element)
             err, predict = srcnn.train(lr_images, hr_images)
 
             if batch == 0:
