@@ -52,6 +52,11 @@ def save_images(images, size, image_path):
     return _imsave(images[:num_im], size, image_path)
 
 
+def save_config(config):
+    with open(os.path.join(config.tfrecord_dir, config.dataset, config.subset, CONFIG_TXT), 'w+') as writer:
+        writer.write(str(config.__flags))
+
+
 def _imsave(images, size, path):
     return scipy.misc.imsave(path, _merge(images, size))
 
@@ -130,9 +135,6 @@ def make_tfrecords(config=FLAGS):
             writer.write(record.SerializeToString())
 
 
-def save_config(config):
-    with open(os.path.join(config.tfrecord_dir, config.dataset, config.subset, CONFIG_TXT), 'w+') as writer:
-        writer.write(str(config.__flags))
 
 
 def parse_function(proto):

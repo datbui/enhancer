@@ -29,6 +29,8 @@ def run_training(config, session):
     assert os.path.exists(config.tfrecord_dir)
     assert os.path.exists(os.path.join(config.tfrecord_dir, config.dataset, config.subset))
 
+    summary_writer = tf.summary.FileWriter(os.path.join(config.summaries_dir, config.dataset, config.subset, 'logs'), session.graph)
+
     save_config(config)
 
     filenames = load_files(os.path.join(config.tfrecord_dir, config.dataset, config.subset), 'tfrecord')
@@ -43,6 +45,8 @@ def run_training(config, session):
     next_element = iterator.get_next()
     session.run(iterator.initializer)
 
+    session.run(tf.global_variables_initializer())
+
     step = 0
     batch = 0
     epoch = 0
@@ -51,18 +55,18 @@ def run_training(config, session):
     while True:
         try:
             lr_images, hr_images, names = session.run(next_element)
-            err, predict = srcnn.train(lr_images, hr_images)
+            summary, err, predict = srcnn.train(lr_images, hr_images)
 
-            if batch == 0:
-                filename = ('epoch_%d.jpg' % epoch)
-                save_output(lr_images[0, :, :, :], predict[0, :, :, :], hr_images[0, :, :, :], os.path.join(config.sample_dir, config.dataset, config.subset, filename))
             if step % 100 == 0:
-                srcnn.save(config.checkpoint_dir, config.dataset, config.subset, step)
                 print("Epoch: [%5d], step: [%5d], epoch_time: [%4.4f], time: [%4.4f], loss: [%.8f]" \
                       % (epoch, step, time.time() - epoch_start_time, time.time() - start_time, err))
             step += 1
             batch += 1
             if step % batch_number == 0:
+                filename = ('epoch_%d.jpg' % epoch)
+                save_output(lr_images[0, :, :, :], predict[0, :, :, :], hr_images[0, :, :, :], os.path.join(config.summaries_dir, config.dataset, config.subset, filename))
+                srcnn.save(config.checkpoint_dir, config.dataset, config.subset, step)
+                summary_writer.add_summary(summary, step)
                 epoch += 1
                 batch = 0
                 epoch_start_time = time.time()
@@ -76,8 +80,8 @@ def main(_):
 
     if not os.path.exists(FLAGS.checkpoint_dir):
         os.makedirs(FLAGS.checkpoint_dir)
-    if not os.path.exists(os.path.join(FLAGS.sample_dir, FLAGS.dataset, FLAGS.subset)):
-        os.makedirs(os.path.join(FLAGS.sample_dir, FLAGS.dataset, FLAGS.subset))
+    if not os.path.exists(os.path.join(FLAGS.summaries_dir, FLAGS.dataset, FLAGS.subset)):
+        os.makedirs(os.path.join(FLAGS.summaries_dir, FLAGS.dataset, FLAGS.subset))
     if not os.path.exists(os.path.join(FLAGS.data_dir, FLAGS.dataset)):
         download_dataset(FLAGS.dataset)
     if not os.path.exists(FLAGS.tfrecord_dir):
@@ -85,7 +89,7 @@ def main(_):
 
     # start the session
     with tf.Session() as sess:
-        sess.run(tf.global_variables_initializer())
+
         run_training(FLAGS, sess)
 
 
