@@ -4,44 +4,49 @@ import numpy as np
 
 
 class SRCNN:
-    def __init__(self, session, batch_size, image_size, channels, learning_rate):
+    def __init__(self, session, batch_size, image_size, channels, learning_rate, device):
         self.session = session
         self.batch_size = batch_size
         self.image_size = image_size
         self.learning_rate = learning_rate
 
+        device = '/device:%s:0' % device
+
         # Build model
         self.filter_shapes = [1, 2, 1]
-        with tf.name_scope('weights'):
-            self.w1 = tf.Variable(tf.random_normal([self.filter_shapes[0], self.filter_shapes[0], channels, 64], stddev=1e-3), name='cnn_w1')
-            self.w2 = tf.Variable(tf.random_normal([self.filter_shapes[1], self.filter_shapes[1], 64, 32], stddev=1e-3), name='cnn_w2')
-            self.w3 = tf.Variable(tf.random_normal([self.filter_shapes[2], self.filter_shapes[2], 32, channels], stddev=1e-3), name='cnn_w3')
-        with tf.name_scope('biases'):
-            self.b1 = tf.Variable(tf.zeros([64]), name='cnn_b1')
-            self.b2 = tf.Variable(tf.zeros([32]), name='cnn_b2')
-            self.b3 = tf.Variable(tf.zeros([channels]), name='cnn_b3')
 
-        with tf.name_scope('inputs'):
-            self.lr_images = tf.placeholder(tf.float32, [self.batch_size, self.image_size, self.image_size, channels], name='low_resolution_images')
-            self.hr_images = tf.placeholder(tf.float32, [self.batch_size, self.image_size, self.image_size, channels], name='high_resolution_images')
+        with tf.device(device):
+            with tf.name_scope('weights'):
+                self.w1 = tf.Variable(tf.random_normal([self.filter_shapes[0], self.filter_shapes[0], channels, 64], stddev=1e-3), name='cnn_w1')
+                self.w2 = tf.Variable(tf.random_normal([self.filter_shapes[1], self.filter_shapes[1], 64, 32], stddev=1e-3), name='cnn_w2')
+                self.w3 = tf.Variable(tf.random_normal([self.filter_shapes[2], self.filter_shapes[2], 32, channels], stddev=1e-3), name='cnn_w3')
 
-        with tf.name_scope('prediction'):
-            self.prediction = self.model()
+            with tf.name_scope('biases'):
+                self.b1 = tf.Variable(tf.zeros([64]), name='cnn_b1')
+                self.b2 = tf.Variable(tf.zeros([32]), name='cnn_b2')
+                self.b3 = tf.Variable(tf.zeros([channels]), name='cnn_b3')
 
-        with tf.name_scope('losses'):
-            self.mse = tf.losses.mean_squared_error(self.hr_images, self.prediction)
-            self.cosine_distance = tf.losses.cosine_distance(self.hr_images, self.prediction, -1)
-            self.psnr = compute_psnr(self.mse)
-            self.ssim = compute_ssim(self.hr_images, self.prediction)
+            with tf.name_scope('inputs'):
+                self.lr_images = tf.placeholder(tf.float32, [self.batch_size, self.image_size, self.image_size, channels], name='low_resolution_images')
+                self.hr_images = tf.placeholder(tf.float32, [self.batch_size, self.image_size, self.image_size, channels], name='high_resolution_images')
 
-        with tf.name_scope('metrics'):
-            self.accurancy, _ = tf.metrics.accuracy(self.hr_images, self.prediction)
-            self.recall, _ = tf.metrics.recall(self.hr_images, self.prediction)
-            self.precision, _ = tf.metrics.precision(self.hr_images, self.prediction)
-            session.run(tf.local_variables_initializer())
+            with tf.name_scope('prediction'):
+                self.prediction = self.model()
 
-        with tf.name_scope('train'):
-            self.train_op = tf.train.AdamOptimizer(self.learning_rate).minimize(self.mse)
+            with tf.name_scope('losses'):
+                self.mse = tf.losses.mean_squared_error(self.hr_images, self.prediction)
+                self.cosine_distance = tf.losses.cosine_distance(self.hr_images, self.prediction, -1)
+                self.psnr = compute_psnr(self.mse)
+                self.ssim = compute_ssim(self.hr_images, self.prediction)
+
+            with tf.name_scope('metrics'):
+                self.accurancy, _ = tf.metrics.accuracy(self.hr_images, self.prediction)
+                self.recall, _ = tf.metrics.recall(self.hr_images, self.prediction)
+                self.precision, _ = tf.metrics.precision(self.hr_images, self.prediction)
+                session.run(tf.local_variables_initializer())
+
+            with tf.name_scope('train'):
+                self.train_op = tf.train.AdamOptimizer(self.learning_rate).minimize(self.mse)
 
         self.saver = tf.train.Saver()
 
@@ -75,7 +80,7 @@ class SRCNN:
 
     def save(self, checkpoint_dir, dataset_name, subset_name, step):
         model_name = "SRCNN.model"
-        model_dir = "%s_%s_%s" % (dataset_name, subset_name, self.batch_size)
+        model_dir = "%s_%s_%d" % (dataset_name, subset_name, self.image_size)
         checkpoint_dir = os.path.join(checkpoint_dir, model_dir)
 
         if not os.path.exists(checkpoint_dir):
@@ -86,7 +91,7 @@ class SRCNN:
     def load(self, checkpoint_dir, dataset_name, subset_name):
         print(" [*] Reading checkpoints...")
 
-        model_dir = "%s_%s_%s" % (dataset_name, subset_name, self.batch_size)
+        model_dir = "%s_%s_%d" % (dataset_name, subset_name, self.image_size)
         checkpoint_dir = os.path.join(checkpoint_dir, model_dir)
 
         ckpt = tf.train.get_checkpoint_state(checkpoint_dir)

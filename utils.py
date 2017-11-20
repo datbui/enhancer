@@ -135,8 +135,6 @@ def make_tfrecords(config=FLAGS):
             writer.write(record.SerializeToString())
 
 
-
-
 def parse_function(proto):
     features = {
         HR_IMAGE: tf.FixedLenFeature((FLAGS.image_size, FLAGS.image_size, FLAGS.color_channels), tf.float32),

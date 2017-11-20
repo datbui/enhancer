@@ -19,7 +19,7 @@ def run_training(config, session):
     batch_number = min(len(input_data), config.train_size) // config.batch_size
     print('Total number of batches  %d' % batch_number)
 
-    srcnn = SRCNN(session, config.batch_size, config.image_size, config.color_channels, config.learning_rate)
+    srcnn = SRCNN(session, config.batch_size, config.image_size, config.color_channels, config.learning_rate, config.device)
 
     if srcnn.load(config.checkpoint_dir, config.dataset, config.subset):
         print(" [*] Load SUCCESS")
@@ -87,8 +87,9 @@ def main(_):
     if not os.path.exists(FLAGS.tfrecord_dir):
         os.makedirs(FLAGS.tfrecord_dir)
 
+    tf.logging.set_verbosity(tf.logging.INFO)
     # start the session
-    with tf.Session() as sess:
+    with tf.Session(config=tf.ConfigProto(log_device_placement=True)) as sess:
 
         run_training(FLAGS, sess)
 
