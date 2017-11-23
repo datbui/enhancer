@@ -15,7 +15,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 
 def run_training(config, session):
-    srcnn = SRCNN(session, config.batch_size, config.image_size, config.color_channels, config.learning_rate)
+    srcnn = SRCNN(session, config.batch_size, config.image_size, config.color_channels, config.learning_rate, config.device)
 
     if srcnn.load(config.checkpoint_dir, config.dataset, config.subset):
         print(" [*] Load SUCCESS")
