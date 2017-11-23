@@ -80,8 +80,7 @@ class SRCNN:
 
     def save(self, checkpoint_dir, dataset_name, subset_name, step):
         model_name = "SRCNN.model"
-        model_dir = "%s_%s_%d" % (dataset_name, subset_name, self.image_size)
-        checkpoint_dir = os.path.join(checkpoint_dir, model_dir)
+        checkpoint_dir = os.path.join(checkpoint_dir, dataset_name, subset_name)
 
         if not os.path.exists(checkpoint_dir):
             os.makedirs(checkpoint_dir)
@@ -91,8 +90,7 @@ class SRCNN:
     def load(self, checkpoint_dir, dataset_name, subset_name):
         print(" [*] Reading checkpoints...")
 
-        model_dir = "%s_%s_%d" % (dataset_name, subset_name, self.image_size)
-        checkpoint_dir = os.path.join(checkpoint_dir, model_dir)
+        checkpoint_dir = os.path.join(checkpoint_dir, dataset_name, subset_name)
 
         ckpt = tf.train.get_checkpoint_state(checkpoint_dir)
         if ckpt and ckpt.model_checkpoint_path:
