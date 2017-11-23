@@ -7,7 +7,7 @@ Super resolution convolutional neural network(SRCNN) based on Tensorflow framewo
 
 ## Instruction
  1. Install TensorFlow(you are supposted to use virtualenv at ~/tensotflow) follow official instration https://www.tensorflow.org/install/
- 2. Install python, pip, numpy, scipy
+ 2. Install python, pip, numpy, scipy, pillow
  3. Images should be located in data folder as follows ./data/{dataset}/{subset}/*.{extension} (e.g. ./data/cars/train/*.jpg)
  4. Preprocess images by preparing tfrecord files: pythorn3 utitls.py --dataset={dataset} --subset={subset}
  5. Run training ./train.sh
