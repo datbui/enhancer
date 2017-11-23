@@ -16,4 +16,5 @@ flags.DEFINE_integer("color_channels", 1, "The number of image color channels")
 flags.DEFINE_integer("train_size", np.inf, "The size of train images [np.inf]")
 flags.DEFINE_integer("epoch", 2000, "Epoch to train [2000]")
 flags.DEFINE_float("learning_rate", 1e-4, "The learning rate of gradient descent algorithm [1e-4]")
+flags.DEFINE_string("device", 'CPU', "The device: CPU or GPU [CPU]")
 FLAGS = flags.FLAGS

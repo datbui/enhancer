@@ -85,8 +85,9 @@ def main(_):
     if not os.path.exists(FLAGS.tfrecord_dir):
         os.makedirs(FLAGS.tfrecord_dir)
 
+    tf.logging.set_verbosity(tf.logging.INFO)
     # start the session
-    with tf.Session() as sess:
+    with tf.Session(config=tf.ConfigProto(log_device_placement=True)) as sess:
 
         run_training(FLAGS, sess)
 
