@@ -15,10 +15,6 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 
 def run_training(config, session):
-    input_data = load_files(os.path.join(config.data_dir, config.dataset, config.subset), config.extension)
-    batch_number = min(len(input_data), config.train_size) // config.batch_size
-    print('Total number of batches  %d' % batch_number)
-
     srcnn = SRCNN(session, config.batch_size, config.image_size, config.color_channels, config.learning_rate)
 
     if srcnn.load(config.checkpoint_dir, config.dataset, config.subset):
@@ -34,6 +30,8 @@ def run_training(config, session):
     save_config(config)
 
     filenames = load_files(os.path.join(config.tfrecord_dir, config.dataset, config.subset), 'tfrecord')
+    batch_number = min(len(filenames), config.train_size) // config.batch_size
+    print('Total number of batches  %d' % batch_number)
 
     dataset = tf.contrib.data.TFRecordDataset(filenames)
     dataset = dataset.map(parse_function)
