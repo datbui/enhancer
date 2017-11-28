@@ -2,6 +2,7 @@ import ntpath
 import os
 
 import tensorflow as tf
+import numpy as np
 
 from config import FLAGS
 from utils import DEPTH, FILENAME, HEIGHT, HR_IMAGE, LR_IMAGE, TFRECORD, WIDTH, do_resize, get_image, get_tfrecord_files, load_files, parse_function, pre_process, save_config
@@ -26,6 +27,16 @@ def _prepare_image(file, config):
     image = pre_process(image)
     low_quality_image = pre_process(low_quality_image)
     return low_quality_image, image
+
+
+def _normalize(image):
+    return image / 255.
+
+
+def pre_process(images):
+    pre_processed = _normalize(np.asarray(images))
+    pre_processed = pre_processed[:, :, np.newaxis] if len(pre_processed.shape) == 2 else pre_processed
+    return pre_processed
 
 
 def create_tfrecords(config=FLAGS):

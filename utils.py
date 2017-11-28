@@ -78,18 +78,8 @@ def do_resize(x, shape):
     return y
 
 
-def _normalize(image):
-    return image / 255.
-
-
 def _unnormalize(image):
     return image * 255.
-
-
-def pre_process(images):
-    pre_processed = _normalize(np.asarray(images))
-    pre_processed = pre_processed[:, :, np.newaxis] if len(pre_processed.shape) == 2 else pre_processed
-    return pre_processed
 
 
 def _post_process(images):
@@ -102,7 +92,7 @@ def parse_function(proto):
         HEIGHT: tf.FixedLenFeature([], tf.int64),
         WIDTH: tf.FixedLenFeature([], tf.int64),
         DEPTH: tf.FixedLenFeature([], tf.int64),
-        # TODO Reshape doesn't work, I have to put dimension here.
+        # TODO Reshape doesn't work, I have to put the shape here.
         HR_IMAGE: tf.FixedLenFeature((FLAGS.image_size, FLAGS.image_size, FLAGS.color_channels), tf.float32),
         LR_IMAGE: tf.FixedLenFeature((FLAGS.image_size, FLAGS.image_size, FLAGS.color_channels), tf.float32),
         FILENAME: tf.FixedLenFeature([], tf.string)
