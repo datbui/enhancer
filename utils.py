@@ -102,6 +102,7 @@ def parse_function(proto):
         HEIGHT: tf.FixedLenFeature([], tf.int64),
         WIDTH: tf.FixedLenFeature([], tf.int64),
         DEPTH: tf.FixedLenFeature([], tf.int64),
+        # TODO Reshape doesn't work, I have to put dimension here.
         HR_IMAGE: tf.FixedLenFeature((FLAGS.image_size, FLAGS.image_size, FLAGS.color_channels), tf.float32),
         LR_IMAGE: tf.FixedLenFeature((FLAGS.image_size, FLAGS.image_size, FLAGS.color_channels), tf.float32),
         FILENAME: tf.FixedLenFeature([], tf.string)
