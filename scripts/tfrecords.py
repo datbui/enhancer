@@ -1,11 +1,11 @@
 import ntpath
 import os
 
-import tensorflow as tf
 import numpy as np
+import tensorflow as tf
 
 from config import FLAGS
-from utils import DEPTH, FILENAME, HEIGHT, HR_IMAGE, LR_IMAGE, TFRECORD, WIDTH, do_resize, get_image, get_tfrecord_files, load_files, parse_function, pre_process, save_config
+from utils import DEPTH, FILENAME, HEIGHT, HR_IMAGE, LR_IMAGE, TFRECORD, WIDTH, do_resize, get_image, get_tfrecord_files, load_files, parse_function, save_config
 
 
 def _bytes_feature(value):
