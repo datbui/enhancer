@@ -4,9 +4,9 @@ import pprint
 import tensorflow as tf
 
 from config import FLAGS
-from download import download_dataset
 from model import get_estimator, get_input_fn
-from utils import load_files, save_config
+from scripts.download import download_dataset
+from utils import get_tfrecord_files, save_config
 
 pp = pprint.PrettyPrinter()
 
@@ -19,7 +19,7 @@ def run_training(config, session):
 
     save_config(config)
 
-    filenames = load_files(os.path.join(config.tfrecord_dir, config.dataset, config.subset), 'tfrecord')
+    filenames = get_tfrecord_files(config)
     batch_number = min(len(filenames), config.train_size) // config.batch_size
     print('Total number of batches  %d' % batch_number)
     params = tf.contrib.training.HParams(
@@ -47,10 +47,10 @@ def main(_):
     tf.logging.set_verbosity(tf.logging.INFO)
     # start the session
     with tf.Session(config=tf.ConfigProto(log_device_placement=True)) as sess:
-
         run_training(FLAGS, sess)
 
 
 if __name__ == '__main__':
-    print("start")
+    print("Start application")
     tf.app.run()
+    print("Finish application")

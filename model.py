@@ -55,7 +55,7 @@ def model_fn(features, labels, mode, params):
             psnr = compute_psnr(mse)
             ssim = compute_ssim(hr_images, prediction)
             eval_metric_ops = {
-                "rmse": rmse
+                "rmse": tf.metrics.root_mean_squared_error(features, prediction)
             }
 
         with tf.name_scope('train'):
@@ -73,7 +73,9 @@ def model_fn(features, labels, mode, params):
         mode=mode,
         loss=mse,
         predictions=prediction,
-        train_op=train_op)
+        train_op=train_op,
+        eval_metric_ops=eval_metric_ops
+    )
 
 
 def get_estimator(run_config=None, params=None):
