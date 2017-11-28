@@ -18,4 +18,5 @@ flags.DEFINE_integer("epoch", 2000, "Epoch to train [2000]")
 flags.DEFINE_float("learning_rate", 1e-4, "The learning rate of gradient descent algorithm [1e-4]")
 flags.DEFINE_string("device", 'CPU', "The device: CPU or GPU [CPU]")
 flags.DEFINE_string("tfrecord_mode", 'test', "Mode to create/test tfrecord files. Default is [test]")
+flags.DEFINE_string("log_dir", "logs", "Directory name to store logs [logs]")
 FLAGS = flags.FLAGS

@@ -1,5 +1,6 @@
 import os
 import pprint
+import logging
 
 import tensorflow as tf
 
@@ -7,6 +8,7 @@ from config import FLAGS
 from model import get_estimator, get_input_fn
 from scripts.download import download_dataset
 from utils import get_tfrecord_files, save_config
+from logging.handlers import RotatingFileHandler
 
 pp = pprint.PrettyPrinter()
 
@@ -35,8 +37,10 @@ def run_training(config, session):
 def main(_):
     pp.pprint(FLAGS.__flags)
 
-    if not os.path.exists(FLAGS.checkpoint_dir):
+    if not os.path.exists(FLAGS.log_dir):
         os.makedirs(FLAGS.checkpoint_dir)
+    if not os.path.exists(FLAGS.log_dir):
+        os.makedirs(FLAGS.log_dir)
     if not os.path.exists(os.path.join(FLAGS.summaries_dir, FLAGS.dataset, FLAGS.subset)):
         os.makedirs(os.path.join(FLAGS.summaries_dir, FLAGS.dataset, FLAGS.subset))
     if not os.path.exists(os.path.join(FLAGS.data_dir, FLAGS.dataset)):
@@ -44,7 +48,15 @@ def main(_):
     if not os.path.exists(FLAGS.tfrecord_dir):
         os.makedirs(FLAGS.tfrecord_dir)
 
-    tf.logging.set_verbosity(tf.logging.INFO)
+    logger = logging.getLogger('tensorflow')
+    logger.setLevel(logging.DEBUG)
+    # create file handler which logs even debug messages
+    fh = RotatingFileHandler(os.path.join(FLAGS.log_dir, 'tensorflow.log'),  maxBytes=10*1024*1024)
+    fh.setLevel(logging.INFO)
+    formatter = logging.Formatter("%(levelname)s:%(name)s:%(message)s")
+    fh.setFormatter(formatter)
+    logger.addHandler(fh)
+
     # start the session
     with tf.Session(config=tf.ConfigProto(log_device_placement=True)) as sess:
         run_training(FLAGS, sess)
