@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 
+from config import FLAGS
 from utils import parse_function
 
 
@@ -69,9 +70,10 @@ def srcnn_model_fn(features, labels, mode, params):
     tf.summary.scalar('ssim', ssim)
     tf.summary.scalar('log_loss', log_loss)
     tf.summary.scalar('huber_loss', huber_loss)
-
     # tf.summary.image('prediction', prediction)
-    # summary_op = tf.summary.merge_all()
+
+    summary_op = tf.summary.merge_all()
+    summary_hook = tf.train.SummarySaverHook(save_steps=1, output_dir=FLAGS.summaries_dir, summary_op=summary_op)
 
     logging_params = {'mse': mse, 'rmse': rmse, 'ssim': ssim, 'psnr': psnr, 'log_loss': log_loss, 'huber_loss': huber_loss, 'step': tf.train.get_global_step()}
     logging_hook = tf.train.LoggingTensorHook(logging_params, every_n_iter=1)
@@ -81,7 +83,7 @@ def srcnn_model_fn(features, labels, mode, params):
         loss=mse,
         predictions=prediction,
         train_op=train_op,
-        training_hooks=[logging_hook],
+        training_hooks=[logging_hook, summary_hook],
         eval_metric_ops=eval_metric_ops
     )
 
