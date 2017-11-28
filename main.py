@@ -53,7 +53,7 @@ def main(_):
     # create file handler which logs even debug messages
     fh = RotatingFileHandler(os.path.join(FLAGS.log_dir, 'tensorflow.log'),  maxBytes=10*1024*1024)
     fh.setLevel(logging.INFO)
-    formatter = logging.Formatter("%(levelname)s:%(name)s:%(message)s")
+    formatter = logging.Formatter("%(levelname)s: %(name)s: %(message)s")
     fh.setFormatter(formatter)
     logger.addHandler(fh)
 

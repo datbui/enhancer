@@ -21,7 +21,7 @@ def input_fn(filenames, epoch, shuffle, batch_size):
     return features, labels
 
 
-def model_fn(features, labels, mode, params):
+def srcnn_model_fn(features, labels, mode, params):
     learning_rate = params.learning_rate
     filter_shapes = [1, 2, 1]
     channels = 1
@@ -52,6 +52,8 @@ def model_fn(features, labels, mode, params):
         with tf.name_scope('losses'):
             mse = tf.losses.mean_squared_error(hr_images, prediction)
             rmse = tf.sqrt(mse)
+            log_loss = tf.losses.log_loss(hr_images, prediction)
+            huber_loss = tf.losses.huber_loss(hr_images, prediction)
             psnr = compute_psnr(mse)
             ssim = compute_ssim(hr_images, prediction)
             eval_metric_ops = {
@@ -65,15 +67,21 @@ def model_fn(features, labels, mode, params):
     tf.summary.scalar('rmse', rmse)
     tf.summary.scalar('psnr', psnr)
     tf.summary.scalar('ssim', ssim)
+    tf.summary.scalar('log_loss', log_loss)
+    tf.summary.scalar('huber_loss', huber_loss)
 
     # tf.summary.image('prediction', prediction)
     # summary_op = tf.summary.merge_all()
+
+    logging_params = {'mse': mse, 'rmse': rmse, 'ssim': ssim, 'psnr': psnr, 'log_loss': log_loss, 'huber_loss': huber_loss, 'step': tf.train.get_global_step()}
+    logging_hook = tf.train.LoggingTensorHook(logging_params, every_n_iter=1)
 
     return tf.estimator.EstimatorSpec(
         mode=mode,
         loss=mse,
         predictions=prediction,
         train_op=train_op,
+        training_hooks=[logging_hook],
         eval_metric_ops=eval_metric_ops
     )
 
@@ -85,7 +93,7 @@ def get_estimator(run_config=None, params=None):
          params (HParams): hyperparameters.
     """
     return tf.estimator.Estimator(
-        model_fn=model_fn,  # First-class function
+        model_fn=srcnn_model_fn,  # First-class function
         params=params,  # HParams
         config=run_config  # RunConfig
     )
