@@ -53,8 +53,8 @@ def save_images(images, size, image_path):
     return _imsave(images[:num_im], size, image_path)
 
 
-def save_config(config):
-    with open(os.path.join(config.tfrecord_dir, config.dataset, config.subset, CONFIG_TXT), 'w+') as writer:
+def save_config(target_dir, config):
+    with open(os.path.join(target_dir, CONFIG_TXT), 'w+') as writer:
         writer.write(str(config.__flags))
 
 

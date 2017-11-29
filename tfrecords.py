@@ -45,7 +45,7 @@ def create_tfrecords(config=FLAGS):
     if not os.path.exists(os.path.join(config.tfrecord_dir, config.dataset, config.subset)):
         os.makedirs(os.path.join(config.tfrecord_dir, config.dataset, config.subset))
 
-    save_config(config)
+    save_config(config.tfrecord_dir, config)
 
     files = load_files(os.path.join(config.data_dir, config.dataset, config.subset), config.extension)
     print("\nThere are %d files in %s dataset, subset %s\n" % (len(files), config.dataset, config.subset))
@@ -72,7 +72,8 @@ def create_tfrecords(config=FLAGS):
 
 def test_tfrecords(config=FLAGS):
     assert os.path.exists(config.tfrecord_dir)
-    assert os.path.exists(os.path.join(config.tfrecord_dir, config.dataset))
+    assert os.path.exists(os.path.join(config.tfrecord_dir, config.dataset, config.subset))
+
 
     filenames = get_tfrecord_files(config)
 

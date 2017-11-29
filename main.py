@@ -102,7 +102,8 @@ def run_experiment(config, session):
     assert os.path.exists(config.tfrecord_dir)
     assert os.path.exists(os.path.join(config.tfrecord_dir, config.dataset, config.subset))
 
-    save_config(config)
+
+    save_config(config.summaries_dir, config)
 
     filenames = get_tfrecord_files(config)
     batch_number = min(len(filenames), config.train_size) // config.batch_size
