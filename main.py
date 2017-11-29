@@ -2,15 +2,16 @@ import logging
 import logging.config
 import os
 import pprint
+from logging.handlers import RotatingFileHandler
+
 import tensorflow as tf
 import yaml
-
 from tensorflow.contrib.learn.python.learn import learn_runner
-from logging.handlers import RotatingFileHandler
+
 from config import FLAGS
+from download import download_dataset
 from model import model_fn
-from scripts.download import download_dataset
-from utils import get_tfrecord_files, save_config, parse_function
+from utils import get_tfrecord_files, parse_function, save_config
 
 pp = pprint.PrettyPrinter()
 
