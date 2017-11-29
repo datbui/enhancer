@@ -1,104 +1,73 @@
-import os
-import tensorflow as tf
 import numpy as np
+import tensorflow as tf
+
+from config import FLAGS
 
 
-class SRCNN:
-    def __init__(self, session, batch_size, image_size, channels, learning_rate, device):
-        self.session = session
-        self.batch_size = batch_size
-        self.image_size = image_size
-        self.learning_rate = learning_rate
+def model_fn(features, labels, mode, params):
+    learning_rate = params.learning_rate
+    filter_shapes = [1, 2, 1]
+    channels = 1
+    device = '/device:%s:0' % params.device
+    with tf.device(device):
+        with tf.name_scope('inputs'):
+            lr_images = features
+            hr_images = labels
 
-        device = '/device:%s:0' % device
+        with tf.name_scope('weights'):
+            w1 = tf.Variable(tf.random_normal([filter_shapes[0], filter_shapes[0], channels, 64], stddev=1e-3), name='cnn_w1')
+            w2 = tf.Variable(tf.random_normal([filter_shapes[1], filter_shapes[1], 64, 32], stddev=1e-3), name='cnn_w2')
+            w3 = tf.Variable(tf.random_normal([filter_shapes[2], filter_shapes[2], 32, channels], stddev=1e-3), name='cnn_w3')
 
-        # Build model
-        self.filter_shapes = [1, 2, 1]
+        with tf.name_scope('biases'):
+            b1 = tf.Variable(tf.zeros([64]), name='cnn_b1')
+            b2 = tf.Variable(tf.zeros([32]), name='cnn_b2')
+            b3 = tf.Variable(tf.zeros([channels]), name='cnn_b3')
 
-        with tf.device(device):
-            with tf.name_scope('weights'):
-                self.w1 = tf.Variable(tf.random_normal([self.filter_shapes[0], self.filter_shapes[0], channels, 64], stddev=1e-3), name='cnn_w1')
-                self.w2 = tf.Variable(tf.random_normal([self.filter_shapes[1], self.filter_shapes[1], 64, 32], stddev=1e-3), name='cnn_w2')
-                self.w3 = tf.Variable(tf.random_normal([self.filter_shapes[2], self.filter_shapes[2], 32, channels], stddev=1e-3), name='cnn_w3')
+        with tf.name_scope('prediction'):
+            conv1 = tf.nn.bias_add(tf.nn.conv2d(lr_images, w1, strides=[1, 1, 1, 1], padding='SAME'), b1, name='conv_1')
+            conv1r = tf.nn.relu(conv1, name='relu_1')
+            conv2 = tf.nn.bias_add(tf.nn.conv2d(conv1r, w2, strides=[1, 1, 1, 1], padding='SAME'), b2, name='conv_2')
+            conv2r = tf.nn.relu(conv2, name='relu_2')
+            conv3 = tf.nn.bias_add(tf.nn.conv2d(conv2r, w3, strides=[1, 1, 1, 1], padding='SAME'), b3, name='conv_3')
+            prediction = conv3
 
-            with tf.name_scope('biases'):
-                self.b1 = tf.Variable(tf.zeros([64]), name='cnn_b1')
-                self.b2 = tf.Variable(tf.zeros([32]), name='cnn_b2')
-                self.b3 = tf.Variable(tf.zeros([channels]), name='cnn_b3')
+        with tf.name_scope('losses'):
+            mse = tf.losses.mean_squared_error(hr_images, prediction)
+            rmse = tf.sqrt(mse)
+            log_loss = tf.losses.log_loss(hr_images, prediction)
+            huber_loss = tf.losses.huber_loss(hr_images, prediction)
+            psnr = compute_psnr(mse)
+            ssim = compute_ssim(hr_images, prediction)
+            eval_metric_ops = {
+                "rmse": tf.metrics.root_mean_squared_error(features, prediction)
+            }
 
-            with tf.name_scope('inputs'):
-                self.lr_images = tf.placeholder(tf.float32, [self.batch_size, self.image_size, self.image_size, channels], name='low_resolution_images')
-                self.hr_images = tf.placeholder(tf.float32, [self.batch_size, self.image_size, self.image_size, channels], name='high_resolution_images')
+        with tf.name_scope('train'):
+            train_op = tf.train.AdamOptimizer(learning_rate).minimize(mse, tf.train.get_global_step())
 
-            with tf.name_scope('prediction'):
-                self.prediction = self.model()
+    tf.summary.scalar('mse', mse)
+    tf.summary.scalar('rmse', rmse)
+    tf.summary.scalar('psnr', psnr)
+    tf.summary.scalar('ssim', ssim)
+    tf.summary.scalar('log_loss', log_loss)
+    tf.summary.scalar('huber_loss', huber_loss)
+    # tf.summary.image('prediction', prediction)
 
-            with tf.name_scope('losses'):
-                self.mse = tf.losses.mean_squared_error(self.hr_images, self.prediction)
-                self.cosine_distance = tf.losses.cosine_distance(self.hr_images, self.prediction, -1)
-                self.psnr = compute_psnr(self.mse)
-                self.ssim = compute_ssim(self.hr_images, self.prediction)
+    summary_op = tf.summary.merge_all()
+    summary_hook = tf.train.SummarySaverHook(save_steps=1, output_dir=FLAGS.summaries_dir, summary_op=summary_op)
 
-            with tf.name_scope('metrics'):
-                self.accurancy, _ = tf.metrics.accuracy(self.hr_images, self.prediction)
-                self.recall, _ = tf.metrics.recall(self.hr_images, self.prediction)
-                self.precision, _ = tf.metrics.precision(self.hr_images, self.prediction)
-                session.run(tf.local_variables_initializer())
+    logging_params = {'mse': mse, 'rmse': rmse, 'ssim': ssim, 'psnr': psnr, 'log_loss': log_loss, 'huber_loss': huber_loss, 'step': tf.train.get_global_step()}
+    logging_hook = tf.train.LoggingTensorHook(logging_params, every_n_iter=1)
 
-            with tf.name_scope('train'):
-                self.train_op = tf.train.AdamOptimizer(self.learning_rate).minimize(self.mse)
-
-        self.saver = tf.train.Saver()
-
-        tf.summary.scalar('mse', self.mse)
-        tf.summary.scalar('psnr', self.psnr)
-        tf.summary.scalar('ssim', self.ssim)
-        tf.summary.scalar('cosine_distance', self.cosine_distance)
-        tf.summary.scalar('accurancy', self.accurancy)
-        tf.summary.scalar('recall', self.recall)
-        tf.summary.scalar('precision', self.precision)
-
-        # tf.summary.image('prediction', self.prediction)
-
-        self.summary_op = tf.summary.merge_all()
-
-    def model(self):
-        conv1 = tf.nn.bias_add(tf.nn.conv2d(self.lr_images, self.w1, strides=[1, 1, 1, 1], padding='SAME'), self.b1, name='conv_1')
-        conv1r = tf.nn.relu(conv1, name='relu_1')
-        conv2 = tf.nn.bias_add(tf.nn.conv2d(conv1r, self.w2, strides=[1, 1, 1, 1], padding='SAME'), self.b2, name='conv_2')
-        conv2r = tf.nn.relu(conv2, name='relu_2')
-        conv3 = tf.nn.bias_add(tf.nn.conv2d(conv2r, self.w3, strides=[1, 1, 1, 1], padding='SAME'), self.b3, name='conv_3')
-        return conv3
-
-    def set_learning_rate(self, learning_rate):
-        assert 0 < learning_rate < 1
-        self.learning_rate = learning_rate
-
-    def train(self, lr_images, hr_images):
-        _, summary, loss, predict = self.session.run([self.train_op, self.summary_op, self.mse, self.prediction], feed_dict={self.lr_images: lr_images, self.hr_images: hr_images})
-        return summary, loss, predict
-
-    def save(self, checkpoint_dir, dataset_name, subset_name, step):
-        model_name = "SRCNN.model"
-        checkpoint_dir = os.path.join(checkpoint_dir, dataset_name, subset_name)
-
-        if not os.path.exists(checkpoint_dir):
-            os.makedirs(checkpoint_dir)
-
-        self.saver.save(self.session, os.path.join(checkpoint_dir, model_name), global_step=step)
-
-    def load(self, checkpoint_dir, dataset_name, subset_name):
-        print(" [*] Reading checkpoints...")
-
-        checkpoint_dir = os.path.join(checkpoint_dir, dataset_name, subset_name)
-
-        ckpt = tf.train.get_checkpoint_state(checkpoint_dir)
-        if ckpt and ckpt.model_checkpoint_path:
-            ckpt_name = os.path.basename(ckpt.model_checkpoint_path)
-            self.saver.restore(self.session, os.path.join(checkpoint_dir, ckpt_name))
-            return True
-        else:
-            return False
+    return tf.estimator.EstimatorSpec(
+        mode=mode,
+        loss=mse,
+        predictions=prediction,
+        train_op=train_op,
+        training_hooks=[logging_hook, summary_hook],
+        eval_metric_ops=eval_metric_ops
+    )
 
 
 def _tf_fspecial_gauss(size, sigma):
