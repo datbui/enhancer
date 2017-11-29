@@ -8,12 +8,12 @@ Super resolution convolutional neural network(SRCNN) based on Tensorflow framewo
  * Pyyaml
 
 ## Instruction
- 1. Install TensorFlow(you are supposted to use virtualenv at ~/tensotflow) follow official instration https://www.tensorflow.org/install/
+ 1. Follow the official installation process to install TensorFlow(you are supposed to use virtualenv at ~/tensotflow): https://www.tensorflow.org/install/
  2. Install python, pip, numpy, scipy, pillow and pyyaml
  3. Images should be located in data folder as follows ./data/{dataset}/{subset}/*.{extension} (e.g. ./data/cars/train/*.jpg)
  4. Preprocess images by preparing tfrecord files: ./create_tfrecords.sh
  5. Run training ./train.sh
- 6. TensorBoard is available. Run from commandline: tensorboard --logdir=./summaries/{dataset}/{subset}/logs/
+ 6. TensorBoard is available. Run from commandline: tensorboard --logdir=./summaries/
 
 ## Project structure
  * config.py   - configuration script
