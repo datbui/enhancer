@@ -2,27 +2,9 @@ import numpy as np
 import tensorflow as tf
 
 from config import FLAGS
-from utils import parse_function
 
 
-def get_input_fn(filenames, num_epochs=None, shuffle=False, batch_size=1):
-    return lambda: input_fn(filenames, num_epochs, shuffle, batch_size)
-
-
-def input_fn(filenames, epoch, shuffle, batch_size):
-    dataset = tf.contrib.data.TFRecordDataset(filenames)
-    dataset = dataset.map(parse_function)
-    dataset = dataset.repeat(epoch)
-    if shuffle:
-        dataset = dataset.shuffle(buffer_size=10000)
-    dataset = dataset.batch(batch_size)
-    iterator = dataset.make_one_shot_iterator()
-    features, labels, names = iterator.get_next()
-    print(names)
-    return features, labels
-
-
-def srcnn_model_fn(features, labels, mode, params):
+def model_fn(features, labels, mode, params):
     learning_rate = params.learning_rate
     filter_shapes = [1, 2, 1]
     channels = 1
@@ -85,19 +67,6 @@ def srcnn_model_fn(features, labels, mode, params):
         train_op=train_op,
         training_hooks=[logging_hook, summary_hook],
         eval_metric_ops=eval_metric_ops
-    )
-
-
-def get_estimator(run_config=None, params=None):
-    """Return the model as a Tensorflow Estimator object.
-    Args:
-         run_config (RunConfig): Configuration for Estimator run.
-         params (HParams): hyperparameters.
-    """
-    return tf.estimator.Estimator(
-        model_fn=srcnn_model_fn,  # First-class function
-        params=params,  # HParams
-        config=run_config  # RunConfig
     )
 
 
