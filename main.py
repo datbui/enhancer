@@ -81,8 +81,8 @@ def experiment_fn(run_config, params):
     run_config = run_config.replace(save_checkpoints_steps=params.min_eval_frequency)
     estimator = get_estimator(run_config, params)
     # # Setup data loaders
-    train_input_fn = get_input_fn(params.filenames, params.epoch, True, params.batch_size)
-    eval_input_fn = get_input_fn(params.filenames, 1, False, params.batch_size)
+    train_input_fn = get_input_fn(params.train_files, params.epoch, True, params.batch_size)
+    eval_input_fn = get_input_fn(params.test_files, 1, False, params.batch_size)
 
     # Define the experiment
     experiment = tf.contrib.learn.Experiment(
@@ -105,8 +105,9 @@ def run_experiment(config, session):
 
     save_config(config.summaries_dir, config)
 
-    filenames = get_tfrecord_files(config)
-    batch_number = min(len(filenames), config.train_size) // config.batch_size
+    train_files = get_tfrecord_files(config, 'train')
+    test_files = get_tfrecord_files(config, 'test')
+    batch_number = min(len(train_files), config.train_size) // config.batch_size
     logging.info('Total number of batches  %d' % batch_number)
 
     params = tf.contrib.training.HParams(
@@ -117,7 +118,8 @@ def run_experiment(config, session):
         min_eval_frequency=100,
         train_steps=None,  # Use train feeder until its empty
         eval_steps=1,  # Use 1 step of evaluation feeder
-        filenames=filenames
+        train_files=train_files,
+        test_files=test_files
     )
     run_config = tf.contrib.learn.RunConfig(model_dir=config.checkpoint_dir)
 
