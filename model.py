@@ -3,6 +3,10 @@ import tensorflow as tf
 
 from config import FLAGS
 
+LOG_EVERY_STEPS = 10
+
+SUMMARY_EVERY_STEPS = 10
+
 
 def model_fn(features, labels, mode, params):
     learning_rate = params.learning_rate
@@ -39,9 +43,6 @@ def model_fn(features, labels, mode, params):
             huber_loss = tf.losses.huber_loss(hr_images, prediction)
             psnr = compute_psnr(mse)
             ssim = compute_ssim(hr_images, prediction)
-            eval_metric_ops = {
-                "rmse": tf.metrics.root_mean_squared_error(features, prediction)
-            }
 
         with tf.name_scope('train'):
             train_op = tf.train.AdamOptimizer(learning_rate).minimize(mse, tf.train.get_global_step())
@@ -52,13 +53,17 @@ def model_fn(features, labels, mode, params):
     tf.summary.scalar('ssim', ssim)
     tf.summary.scalar('log_loss', log_loss)
     tf.summary.scalar('huber_loss', huber_loss)
-    # tf.summary.image('prediction', prediction)
+    tf.summary.image('prediction', prediction, max_outputs=1)
 
     summary_op = tf.summary.merge_all()
-    summary_hook = tf.train.SummarySaverHook(save_steps=1, output_dir=FLAGS.summaries_dir, summary_op=summary_op)
+    summary_hook = tf.train.SummarySaverHook(save_steps=SUMMARY_EVERY_STEPS, output_dir=FLAGS.summaries_dir, summary_op=summary_op)
 
     logging_params = {'mse': mse, 'rmse': rmse, 'ssim': ssim, 'psnr': psnr, 'log_loss': log_loss, 'huber_loss': huber_loss, 'step': tf.train.get_global_step()}
-    logging_hook = tf.train.LoggingTensorHook(logging_params, every_n_iter=1)
+    logging_hook = tf.train.LoggingTensorHook(logging_params, every_n_iter=LOG_EVERY_STEPS)
+
+    eval_metric_ops = {
+        "rmse": tf.metrics.root_mean_squared_error(features, prediction)
+    }
 
     return tf.estimator.EstimatorSpec(
         mode=mode,
