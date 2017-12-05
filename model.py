@@ -1,7 +1,12 @@
 import numpy as np
 import tensorflow as tf
+from tensorflow.python.estimator.model_fn import ModeKeys as Modes
 
 from config import FLAGS
+
+LOG_EVERY_STEPS = 10
+
+SUMMARY_EVERY_STEPS = 10
 
 
 def model_fn(features, labels, mode, params):
@@ -24,50 +29,63 @@ def model_fn(features, labels, mode, params):
             b2 = tf.Variable(tf.zeros([32]), name='cnn_b2')
             b3 = tf.Variable(tf.zeros([channels]), name='cnn_b3')
 
-        with tf.name_scope('prediction'):
+        with tf.name_scope('predictions'):
             conv1 = tf.nn.bias_add(tf.nn.conv2d(lr_images, w1, strides=[1, 1, 1, 1], padding='SAME'), b1, name='conv_1')
             conv1r = tf.nn.relu(conv1, name='relu_1')
             conv2 = tf.nn.bias_add(tf.nn.conv2d(conv1r, w2, strides=[1, 1, 1, 1], padding='SAME'), b2, name='conv_2')
             conv2r = tf.nn.relu(conv2, name='relu_2')
             conv3 = tf.nn.bias_add(tf.nn.conv2d(conv2r, w3, strides=[1, 1, 1, 1], padding='SAME'), b3, name='conv_3')
-            prediction = conv3
+            predictions = conv3
 
-        with tf.name_scope('losses'):
-            mse = tf.losses.mean_squared_error(hr_images, prediction)
-            rmse = tf.sqrt(mse)
-            log_loss = tf.losses.log_loss(hr_images, prediction)
-            huber_loss = tf.losses.huber_loss(hr_images, prediction)
-            psnr = compute_psnr(mse)
-            ssim = compute_ssim(hr_images, prediction)
-            eval_metric_ops = {
-                "rmse": tf.metrics.root_mean_squared_error(features, prediction)
-            }
+        if mode in (Modes.TRAIN, Modes.EVAL):
+            with tf.name_scope('losses'):
+                mse = tf.losses.mean_squared_error(hr_images, predictions)
+                rmse = tf.sqrt(mse)
+                log_loss = tf.losses.log_loss(hr_images, predictions)
+                huber_loss = tf.losses.huber_loss(hr_images, predictions)
+                psnr = compute_psnr(mse)
+                ssim = compute_ssim(hr_images, predictions)
+            with tf.name_scope('train'):
+                train_op = tf.train.AdamOptimizer(learning_rate).minimize(mse, tf.train.get_global_step())
 
-        with tf.name_scope('train'):
-            train_op = tf.train.AdamOptimizer(learning_rate).minimize(mse, tf.train.get_global_step())
+    if mode in (Modes.TRAIN, Modes.EVAL):
+        tf.summary.scalar('mse', mse)
+        tf.summary.scalar('rmse', rmse)
+        tf.summary.scalar('psnr', psnr)
+        tf.summary.scalar('ssim', ssim)
+        tf.summary.scalar('log_loss', log_loss)
+        tf.summary.scalar('huber_loss', huber_loss)
+        tf.summary.image('predictions', predictions, max_outputs=1)
 
-    tf.summary.scalar('mse', mse)
-    tf.summary.scalar('rmse', rmse)
-    tf.summary.scalar('psnr', psnr)
-    tf.summary.scalar('ssim', ssim)
-    tf.summary.scalar('log_loss', log_loss)
-    tf.summary.scalar('huber_loss', huber_loss)
-    # tf.summary.image('prediction', prediction)
+        summary_op = tf.summary.merge_all()
+        summary_hook = tf.train.SummarySaverHook(save_steps=SUMMARY_EVERY_STEPS, output_dir=FLAGS.summaries_dir, summary_op=summary_op)
 
-    summary_op = tf.summary.merge_all()
-    summary_hook = tf.train.SummarySaverHook(save_steps=1, output_dir=FLAGS.summaries_dir, summary_op=summary_op)
+        logging_params = {'mse': mse, 'rmse': rmse, 'ssim': ssim, 'psnr': psnr, 'log_loss': log_loss, 'huber_loss': huber_loss, 'step': tf.train.get_global_step()}
+        logging_hook = tf.train.LoggingTensorHook(logging_params, every_n_iter=LOG_EVERY_STEPS)
 
-    logging_params = {'mse': mse, 'rmse': rmse, 'ssim': ssim, 'psnr': psnr, 'log_loss': log_loss, 'huber_loss': huber_loss, 'step': tf.train.get_global_step()}
-    logging_hook = tf.train.LoggingTensorHook(logging_params, every_n_iter=1)
+        eval_metric_ops = {
+            "rmse": tf.metrics.root_mean_squared_error(features, predictions)
+        }
+        estimator_spec = tf.estimator.EstimatorSpec(
+            mode=mode,
+            loss=mse,
+            predictions=predictions,
+            train_op=train_op,
+            training_hooks=[logging_hook, summary_hook],
+            eval_metric_ops=eval_metric_ops
+        )
+    else:
+        # mode == Modes.PREDICT:
+        export_outputs = {
+            'predictions': tf.estimator.export.PredictOutput({'high_res_images': predictions})
+        }
+        estimator_spec = tf.estimator.EstimatorSpec(
+            mode=mode,
+            predictions=predictions,
+            export_outputs=export_outputs
+        )
 
-    return tf.estimator.EstimatorSpec(
-        mode=mode,
-        loss=mse,
-        predictions=prediction,
-        train_op=train_op,
-        training_hooks=[logging_hook, summary_hook],
-        eval_metric_ops=eval_metric_ops
-    )
+    return estimator_spec
 
 
 def _tf_fspecial_gauss(size, sigma):
