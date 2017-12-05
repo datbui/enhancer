@@ -11,8 +11,8 @@ Super resolution convolutional neural network(SRCNN) based on Tensorflow framewo
  1. Install TensorFlow(you are supposted to use virtualenv at ~/tensotflow) follow official instration https://www.tensorflow.org/install/
  2. Install python, pip, numpy, scipy, pillow and pyyaml
  3. Images should be located in data folder as follows ./data/{dataset}/{subset}/*.{extension} (e.g. ./data/cars/train/*.jpg)
- 4. Preprocess images by preparing tfrecord files: ./create_tfrecords.sh
- 5. Run training ./train.sh
+ 4. Preprocess images by prepari ng tfrecord files: ./scripts/create-tfrecords.sh
+ 5. Run training ./scripts/start-training-local.sh
  6. TensorBoard is available. Run from commandline: tensorboard --logdir=./summaries/{dataset}/{subset}/logs/
 
 ## Project structure
@@ -28,3 +28,4 @@ Super resolution convolutional neural network(SRCNN) based on Tensorflow framewo
  * [Subpixel repository](https://github.com/tetrachrome/subpixel) 
  * [Introduction to TensorFlow Datasets and Estimators](https://developers.googleblog.com/2017/09/introducing-tensorflow-datasets.html)
  * [How to use Estimator, Experiment and Dataset to train models](https://medium.com/onfido-tech/higher-level-apis-in-tensorflow-67bfb602e6c0)
+ * [Cloud MLE and GCE compatible TensorFlow distributed training example](https://github.com/GoogleCloudPlatform/cloudml-dist-mnist-example)

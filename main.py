@@ -147,6 +147,7 @@ def run_testing(session, config=FLAGS):
     predict_results = srcnn.predict(test_input_fn)
     for prediction in predict_results:
         lr_image, hr_image, name = session.run(next_element)
+        logging.info('Enhance resolution for %s' % name)
         save_output(lr_img=lr_image, prediction=prediction, hr_img=hr_image, path=os.path.join(config.log_dir, '%s.jpg' % name))
 
 
