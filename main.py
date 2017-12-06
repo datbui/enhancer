@@ -82,13 +82,12 @@ def experiment_fn(run_config, params):
     estimator = get_estimator(run_config, params)
     # # Setup data loaders
     train_input_fn = get_input_fn(params.train_files, params.epoch, True, params.batch_size)
-    eval_input_fn = get_input_fn(params.test_files, 1, False, params.batch_size)
 
     # Define the experiment
     experiment = tf.contrib.learn.Experiment(
         estimator=estimator,  # Estimator
         train_input_fn=train_input_fn,  # First-class function
-        eval_input_fn=eval_input_fn,  # First-class function
+        eval_input_fn=train_input_fn,  # First-class function
         train_steps=params.train_steps,  # Minibatch steps
         min_eval_frequency=params.min_eval_frequency,  # Eval frequency
         # train_monitors=[train_input_hook],  # Hooks for training
@@ -101,8 +100,7 @@ def experiment_fn(run_config, params):
 def run_training(config=FLAGS):
     save_config(config.summaries_dir, config)
 
-    train_files = get_tfrecord_files(config, 'train')
-    test_files = get_tfrecord_files(config, 'test')
+    train_files = get_tfrecord_files(config)
     batch_number = min(len(train_files), config.train_size) // config.batch_size
     logging.info('Total number of batches  %d' % batch_number)
 
@@ -114,8 +112,7 @@ def run_training(config=FLAGS):
         min_eval_frequency=100,
         train_steps=None,  # Use train feeder until its empty
         eval_steps=1,  # Use 1 step of evaluation feeder
-        train_files=train_files,
-        test_files=test_files
+        train_files=train_files
     )
     run_config = tf.contrib.learn.RunConfig(model_dir=config.checkpoint_dir)
 
@@ -128,7 +125,7 @@ def run_training(config=FLAGS):
 
 
 def run_testing(session, config=FLAGS):
-    files = get_tfrecord_files(config, config.subset)
+    files = get_tfrecord_files(config)
 
     dataset = tf.contrib.data.TFRecordDataset(files)
     dataset = dataset.map(parse_function)
