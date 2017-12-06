@@ -119,7 +119,7 @@ def run_training(config=FLAGS):
     learn_runner.run(
         experiment_fn=experiment_fn,  # First-class function
         run_config=run_config,  # RunConfig
-        schedule="train_and_evaluate",  # What to run
+        schedule="train",  # What to run
         hparams=params  # HParams
     )
 
