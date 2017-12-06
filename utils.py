@@ -30,8 +30,8 @@ def load_files(path, extension):
     return files
 
 
-def get_tfrecord_files(config, subset):
-    return load_files(os.path.join(config.tfrecord_dir, config.dataset, subset), TFRECORD)
+def get_tfrecord_files(config):
+    return load_files(os.path.join(config.tfrecord_dir, config.dataset, config.subset), TFRECORD)
 
 
 def get_image(image_path, image_size, is_black_white=True):

@@ -75,7 +75,7 @@ def test_tfrecords(config=FLAGS):
     assert os.path.exists(os.path.join(config.tfrecord_dir, config.dataset, config.subset))
 
 
-    filenames = get_tfrecord_files(config, config.subset)
+    filenames = get_tfrecord_files(config)
 
     dataset = tf.contrib.data.TFRecordDataset(filenames)
     dataset = dataset.map(parse_function)
