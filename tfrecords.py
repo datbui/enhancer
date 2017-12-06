@@ -47,12 +47,15 @@ def create_tfrecords(config=FLAGS):
 
     save_config(config.tfrecord_dir, config)
 
-    files = load_files(os.path.join(config.data_dir, config.dataset, config.subset), config.extension)
-    print("\nThere are %d files in %s dataset, subset %s\n" % (len(files), config.dataset, config.subset))
-    for file in files:
+    highres_files = load_files(os.path.join(config.data_dir, config.dataset, config.subset, 'Highres'), config.extension)
+    print("\nThere are %d files in %s dataset, subset %s\n" % (len(highres_files), config.dataset, config.subset))
+    for file in highres_files:
         print(file)
-        lr_image, hr_image = _prepare_image(file, config)
         name = ntpath.basename(file).split('.')[0]
+        lowres_filename = os.path.join(config.data_dir, config.dataset, config.subset, 'Lowres', '%s.%s' % (name, config.extension))
+        hr_image = pre_process(get_image(file, config.image_size, config.color_channels == 1))
+        lr_image = pre_process(get_image(lowres_filename, config.image_size, config.color_channels == 1))
+
         # Create a feature and record
         feature = {
             HEIGHT: _int64_feature(config.image_size),
