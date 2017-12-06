@@ -56,7 +56,7 @@ def model_fn(features, labels, mode, params):
                 lr_hr_psnr = compute_psnr(lr_hr_mse)
                 lr_hr_ssim = compute_ssim(hr_images, lr_images)
             with tf.name_scope('train'):
-                train_op = tf.train.AdamOptimizer(learning_rate).minimize(rmse, tf.train.get_global_step())
+                train_op = tf.train.AdamOptimizer(learning_rate).minimize(mse, tf.train.get_global_step())
 
     if mode in (Modes.TRAIN, Modes.EVAL):
         tf.summary.scalar('mse', mse)
