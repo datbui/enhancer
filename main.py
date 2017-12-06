@@ -111,7 +111,7 @@ def run_training(config=FLAGS):
         device=config.device,
         epoch=config.epoch,
         batch_size=config.batch_size,
-        min_eval_frequency=100,
+        min_eval_frequency=1000,
         train_steps=None,  # Use train feeder until its empty
         eval_steps=1,  # Use 1 step of evaluation feeder
         train_files=train_files,
@@ -122,7 +122,7 @@ def run_training(config=FLAGS):
     learn_runner.run(
         experiment_fn=experiment_fn,  # First-class function
         run_config=run_config,  # RunConfig
-        schedule="train_and_evaluate",  # What to run
+        schedule="train",  # What to run
         hparams=params  # HParams
     )
 
