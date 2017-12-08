@@ -151,7 +151,7 @@ def run_testing(session, config=FLAGS):
 def main(_):
     pp.pprint(FLAGS.__flags)
 
-    if not os.path.exists(FLAGS.log_dir):
+    if not os.path.exists(FLAGS.checkpoint_dir):
         os.makedirs(FLAGS.checkpoint_dir)
     if not os.path.exists(FLAGS.log_dir):
         os.makedirs(FLAGS.log_dir)
