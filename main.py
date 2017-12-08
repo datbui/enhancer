@@ -109,7 +109,7 @@ def run_training(config=FLAGS):
         device=config.device,
         epoch=config.epoch,
         batch_size=config.batch_size,
-        min_eval_frequency=100,
+        min_eval_frequency=1000,
         train_steps=None,  # Use train feeder until its empty
         eval_steps=1,  # Use 1 step of evaluation feeder
         train_files=train_files
@@ -151,7 +151,7 @@ def run_testing(session, config=FLAGS):
 def main(_):
     pp.pprint(FLAGS.__flags)
 
-    if not os.path.exists(FLAGS.log_dir):
+    if not os.path.exists(FLAGS.checkpoint_dir):
         os.makedirs(FLAGS.checkpoint_dir)
     if not os.path.exists(FLAGS.log_dir):
         os.makedirs(FLAGS.log_dir)

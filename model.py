@@ -6,12 +6,12 @@ from config import FLAGS
 
 LOG_EVERY_STEPS = 10
 
-SUMMARY_EVERY_STEPS = 10
+SUMMARY_EVERY_STEPS = 100
 
 
 def model_fn(features, labels, mode, params):
     learning_rate = params.learning_rate
-    filter_shapes = [1, 2, 1]
+    filters_shape = [2, 1,  3, 2, 1]
     channels = 1
     device = '/device:%s:0' % params.device
     with tf.device(device):
@@ -20,14 +20,18 @@ def model_fn(features, labels, mode, params):
             hr_images = labels
 
         with tf.name_scope('weights'):
-            w1 = tf.Variable(tf.random_normal([filter_shapes[0], filter_shapes[0], channels, 64], stddev=1e-3), name='cnn_w1')
-            w2 = tf.Variable(tf.random_normal([filter_shapes[1], filter_shapes[1], 64, 32], stddev=1e-3), name='cnn_w2')
-            w3 = tf.Variable(tf.random_normal([filter_shapes[2], filter_shapes[2], 32, channels], stddev=1e-3), name='cnn_w3')
+            w1 = tf.Variable(tf.random_normal([filters_shape[0], filters_shape[0], channels, 64], stddev=1e-3), name='cnn_w1')
+            w2 = tf.Variable(tf.random_normal([filters_shape[1], filters_shape[1], 64, 32], stddev=1e-3), name='cnn_w2')
+            w3 = tf.Variable(tf.random_normal([filters_shape[2], filters_shape[2], 32, 16], stddev=1e-3), name='cnn_w3')
+            w4 = tf.Variable(tf.random_normal([filters_shape[3], filters_shape[3], 16, 8], stddev=1e-3), name='cnn_w4')
+            w5 = tf.Variable(tf.random_normal([filters_shape[4], filters_shape[4], 8, channels], stddev=1e-3), name='cnn_w5')
 
         with tf.name_scope('biases'):
             b1 = tf.Variable(tf.zeros([64]), name='cnn_b1')
             b2 = tf.Variable(tf.zeros([32]), name='cnn_b2')
-            b3 = tf.Variable(tf.zeros([channels]), name='cnn_b3')
+            b3 = tf.Variable(tf.zeros([16]), name='cnn_b3')
+            b4 = tf.Variable(tf.zeros([8]), name='cnn_b4')
+            b5 = tf.Variable(tf.zeros([channels]), name='cnn_b5')
 
         with tf.name_scope('predictions'):
             conv1 = tf.nn.bias_add(tf.nn.conv2d(lr_images, w1, strides=[1, 1, 1, 1], padding='SAME'), b1, name='conv_1')
@@ -35,16 +39,22 @@ def model_fn(features, labels, mode, params):
             conv2 = tf.nn.bias_add(tf.nn.conv2d(conv1r, w2, strides=[1, 1, 1, 1], padding='SAME'), b2, name='conv_2')
             conv2r = tf.nn.relu(conv2, name='relu_2')
             conv3 = tf.nn.bias_add(tf.nn.conv2d(conv2r, w3, strides=[1, 1, 1, 1], padding='SAME'), b3, name='conv_3')
-            predictions = conv3
+            conv3r = tf.nn.relu(conv3, name='relu_3')
+            conv4 = tf.nn.bias_add(tf.nn.conv2d(conv3r, w4, strides=[1, 1, 1, 1], padding='SAME'), b4, name='conv_4')
+            conv4r = tf.nn.relu(conv4, name='relu_4')
+            conv5 = tf.nn.bias_add(tf.nn.conv2d(conv4r, w5, strides=[1, 1, 1, 1], padding='SAME'), b5, name='conv_5')
+            predictions = conv5
 
         if mode in (Modes.TRAIN, Modes.EVAL):
             with tf.name_scope('losses'):
                 mse = tf.losses.mean_squared_error(hr_images, predictions)
                 rmse = tf.sqrt(mse)
-                log_loss = tf.losses.log_loss(hr_images, predictions)
-                huber_loss = tf.losses.huber_loss(hr_images, predictions)
                 psnr = compute_psnr(mse)
                 ssim = compute_ssim(hr_images, predictions)
+                lr_hr_mse = tf.losses.mean_squared_error(hr_images, lr_images)
+                lr_hr_rmse = tf.sqrt(lr_hr_mse)
+                lr_hr_psnr = compute_psnr(lr_hr_mse)
+                lr_hr_ssim = compute_ssim(hr_images, lr_images)
             with tf.name_scope('train'):
                 train_op = tf.train.AdamOptimizer(learning_rate).minimize(mse, tf.train.get_global_step())
 
@@ -53,14 +63,16 @@ def model_fn(features, labels, mode, params):
         tf.summary.scalar('rmse', rmse)
         tf.summary.scalar('psnr', psnr)
         tf.summary.scalar('ssim', ssim)
-        tf.summary.scalar('log_loss', log_loss)
-        tf.summary.scalar('huber_loss', huber_loss)
-        tf.summary.image('predictions', predictions, max_outputs=1)
+        tf.summary.scalar('lr_hr_mse', lr_hr_mse)
+        tf.summary.scalar('lr_hr_rmse', lr_hr_rmse)
+        tf.summary.scalar('lr_hr_psnr', lr_hr_psnr)
+        tf.summary.scalar('lr_hr_ssim', lr_hr_ssim)
+        # tf.summary.image('predictions', predictions, max_outputs=1)
 
         summary_op = tf.summary.merge_all()
         summary_hook = tf.train.SummarySaverHook(save_steps=SUMMARY_EVERY_STEPS, output_dir=FLAGS.summaries_dir, summary_op=summary_op)
 
-        logging_params = {'mse': mse, 'rmse': rmse, 'ssim': ssim, 'psnr': psnr, 'log_loss': log_loss, 'huber_loss': huber_loss, 'step': tf.train.get_global_step()}
+        logging_params = {'mse': mse, 'rmse': rmse, 'ssim': ssim, 'psnr': psnr, 'step': tf.train.get_global_step()}
         logging_hook = tf.train.LoggingTensorHook(logging_params, every_n_iter=LOG_EVERY_STEPS)
 
         eval_metric_ops = {
