@@ -1,16 +1,19 @@
+import csv
 import logging
 import logging.config
 import os
 import pprint
 from logging.handlers import RotatingFileHandler
 
+import numpy as np
 import tensorflow as tf
 import yaml
+from skimage.measure import compare_ssim
 from tensorflow.contrib.learn.python.learn import learn_runner
 
 from config import FLAGS
 from download import download_dataset
-from model import model_fn
+from model import compute_ssim, compute_psnr, model_fn
 from utils import get_tfrecord_files, parse_function, save_config, save_output
 
 pp = pprint.PrettyPrinter()
@@ -123,15 +126,29 @@ def run_training(config=FLAGS):
         hparams=params  # HParams
     )
 
+def _mse(image1, image2):
+    return np.square(np.subtract(image1, image2)).mean()
+
+def _psnr(mse):
+    if mse == 0:
+        return 100
+    return -10. * np.log(mse) / np.log(10.)
 
 def run_testing(session, config=FLAGS):
     files = get_tfrecord_files(config)
 
     dataset = tf.contrib.data.TFRecordDataset(files)
     dataset = dataset.map(parse_function)
+    dataset = dataset.batch(1)
     iterator = dataset.make_initializable_iterator()
     next_element = iterator.get_next()
     session.run(iterator.initializer)
+
+    (lr_image, hr_image, name) = next_element
+    tf_initial_mse = tf.losses.mean_squared_error(hr_image, lr_image)
+    tf_initial_rmse = tf.sqrt(tf_initial_mse)
+    tf_initial_psnr = compute_psnr(tf_initial_mse)
+    tf_initial_ssim = compute_ssim(hr_image, lr_image)
 
     params = tf.contrib.training.HParams(
         learning_rate=config.learning_rate,
@@ -142,10 +159,20 @@ def run_testing(session, config=FLAGS):
 
     test_input_fn = get_input_fn(files, 1, False, config.batch_size)
     predict_results = srcnn.predict(test_input_fn)
+    params_file = open('metrics.csv', 'w+')
+    writer = csv.writer(params_file)
+
     for prediction in predict_results:
-        lr_image, hr_image, name = session.run(next_element)
-        logging.info('Enhance resolution for %s' % name)
+        initial_rmse, initial_psnr, initial_ssim, (lr_image, hr_image, name) = session.run([tf_initial_rmse, tf_initial_psnr, tf_initial_ssim, next_element])
+        mse = _mse(hr_image, prediction)
+        psnr = _psnr(mse)
+        ssim = compare_ssim(hr_image.squeeze(), np.asarray(prediction).squeeze())
+        name = str(name[0]).replace('b\'', '').replace('\'', '')
+        print(name)
+        writer.writerows([[name, initial_rmse, initial_psnr, initial_ssim, np.sqrt(mse), psnr, ssim]])
         save_output(lr_img=lr_image, prediction=prediction, hr_img=hr_image, path=os.path.join(config.log_dir, '%s.jpg' % name))
+
+    params_file.close()
 
 
 def main(_):
