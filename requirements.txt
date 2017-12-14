@@ -1,0 +1,4 @@
+pillow>=3.2.0
+pyyaml>=3.12
+scipy>=1.0.0
+numpy>=1.13.3

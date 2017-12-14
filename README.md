@@ -2,18 +2,22 @@
 Super resolution convolutional neural network(SRCNN) based on Tensorflow framework.
 
 ## Prerequisites
+ * Python 3.X.X
  * Tensorflow >=1.4.0
- * Scipy version > 0.18 ('mode' option from scipy.misc.imread function)
- * Pillow
- * Pyyaml
+ * Scipy>=1.0.0
+ * Pillow >=4.3.0
+ * Pyyaml >=3.12
+ * Numpy >=1.13.3
 
 ## Instruction
- 1. Follow the official installation process to install TensorFlow(you are supposed to use virtualenv at ~/tensotflow): https://www.tensorflow.org/install/
- 2. Install python, pip, numpy, scipy, pillow and pyyaml
- 3. Images should be located in data folder as follows ./data/{dataset}/{subset}/*.{extension} (e.g. ./data/cars/train/*.jpg)
- 4. Preprocess images by preparing tfrecord files: ./scripts/create-tfrecords.sh
- 5. Run training ./scripts/start-training-local.sh
- 6. TensorBoard is available. Run from commandline: tensorboard --logdir=./summaries/{dataset}/{subset}/logs/
+ 1. Install [Python 3](https://www.python.org/downloads/) 
+ 2. Follow the official installation process to install TensorFlow(you are supposed to use virtualenv at ~/tensotflow): https://www.tensorflow.org/install/
+ 3. Install python packages: pip3 install -r requirements.txt
+ 4. Images should be located in data folder as follows ./data/{dataset}/{subset}/*.{extension} (e.g. ./data/cars/train/*.jpg)
+ 5. Preprocess images by preparing tfrecord files: ./scripts/create-tfrecords.sh
+ 6. Run training ./scripts/start-training-local.sh
+ 7. TensorBoard is available. Run from commandline: tensorboard --logdir=./summaries/{dataset}/{subset}/logs/
+ 8. Run prediction ./scripts/start-testing-local.sh
 
 ## Project structure
  * config.py   - configuration script
