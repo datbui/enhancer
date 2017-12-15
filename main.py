@@ -13,8 +13,14 @@ from tensorflow.contrib.learn.python.learn import learn_runner
 
 from config import FLAGS
 from download import download_dataset
-from model import compute_ssim, compute_psnr, model_fn
-from utils import get_tfrecord_files, parse_function, save_config, save_output
+from model import compute_psnr, compute_ssim, model_fn
+from utils import get_tfrecord_files, parse_function, save_config, save_image, save_output
+
+PREDICTION = 'prediction'
+
+LOW_RESOLUTION = 'low_resolution'
+
+HIGH_RESOLUTION = 'high_resolution'
 
 pp = pprint.PrettyPrinter()
 
@@ -170,7 +176,10 @@ def run_testing(session, config=FLAGS):
         name = str(name[0]).replace('b\'', '').replace('\'', '')
         print(name)
         writer.writerows([[name, initial_rmse, initial_psnr, initial_ssim, np.sqrt(mse), psnr, ssim]])
-        save_output(lr_img=lr_image, prediction=prediction, hr_img=hr_image, path=os.path.join(config.log_dir, '%s.jpg' % name))
+        save_image(image=prediction, path=os.path.join(config.output_dir, PREDICTION, '%s.jpg' % name))
+        save_image(image=lr_image, path=os.path.join(config.output_dir, LOW_RESOLUTION, '%s.jpg' % name))
+        save_image(image=hr_image, path=os.path.join(config.output_dir, HIGH_RESOLUTION, '%s.jpg' % name))
+        save_output(lr_img=lr_image, prediction=prediction, hr_img=hr_image, path=os.path.join(config.output_dir, '%s.jpg' % name))
 
     params_file.close()
 
@@ -182,6 +191,10 @@ def main(_):
         os.makedirs(FLAGS.checkpoint_dir)
     if not os.path.exists(FLAGS.log_dir):
         os.makedirs(FLAGS.log_dir)
+    if not os.path.exists(FLAGS.output_dir):
+        os.makedirs(os.path.join(FLAGS.output_dir, PREDICTION))
+        os.makedirs(os.path.join(FLAGS.output_dir, LOW_RESOLUTION))
+        os.makedirs(os.path.join(FLAGS.output_dir, HIGH_RESOLUTION))
     if not os.path.exists(FLAGS.summaries_dir):
         os.makedirs(FLAGS.summaries_dir)
     if not os.path.exists(os.path.join(FLAGS.data_dir, FLAGS.dataset)):
