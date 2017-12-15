@@ -19,5 +19,6 @@ flags.DEFINE_float("learning_rate", 1e-4, "The learning rate of gradient descent
 flags.DEFINE_string("device", 'CPU', "The device: CPU or GPU [CPU]")
 flags.DEFINE_string("tfrecord_mode", 'test', "Mode to create/test tfrecord files. Default is [test]")
 flags.DEFINE_string("log_dir", "logs", "Directory name to store logs [logs]")
+flags.DEFINE_string("output_dir", "outputs", "Directory name to store output images [outputs]")
 flags.DEFINE_bool("is_train", "true", "Train or test mode")
 FLAGS = flags.FLAGS
