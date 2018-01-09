@@ -51,28 +51,22 @@ def model_fn(features, labels, mode, params):
                 rmse = tf.sqrt(mse)
                 psnr = compute_psnr(mse)
                 ssim = compute_ssim(hr_images, predictions)
-                lr_hr_mse = tf.losses.mean_squared_error(hr_images, lr_images)
-                lr_hr_rmse = tf.sqrt(lr_hr_mse)
-                lr_hr_psnr = compute_psnr(lr_hr_mse)
-                lr_hr_ssim = compute_ssim(hr_images, lr_images)
+                loss = 0.5*(rmse + 1 - ssim)
             with tf.name_scope('train'):
-                train_op = tf.train.AdamOptimizer(learning_rate).minimize(mse, tf.train.get_global_step())
+                train_op = tf.train.AdamOptimizer(learning_rate).minimize(loss, tf.train.get_global_step())
 
     if mode in (Modes.TRAIN, Modes.EVAL):
         tf.summary.scalar('mse', mse)
         tf.summary.scalar('rmse', rmse)
         tf.summary.scalar('psnr', psnr)
         tf.summary.scalar('ssim', ssim)
-        tf.summary.scalar('lr_hr_mse', lr_hr_mse)
-        tf.summary.scalar('lr_hr_rmse', lr_hr_rmse)
-        tf.summary.scalar('lr_hr_psnr', lr_hr_psnr)
-        tf.summary.scalar('lr_hr_ssim', lr_hr_ssim)
+        tf.summary.scalar('loss', loss)
         # tf.summary.image('predictions', predictions, max_outputs=1)
 
         summary_op = tf.summary.merge_all()
         summary_hook = tf.train.SummarySaverHook(save_steps=SUMMARY_EVERY_STEPS, output_dir=FLAGS.summaries_dir, summary_op=summary_op)
 
-        logging_params = {'mse': mse, 'rmse': rmse, 'ssim': ssim, 'psnr': psnr, 'step': tf.train.get_global_step()}
+        logging_params = {'mse': mse, 'rmse': rmse, 'ssim': ssim, 'psnr': psnr, 'loss': loss, 'step': tf.train.get_global_step()}
         logging_hook = tf.train.LoggingTensorHook(logging_params, every_n_iter=LOG_EVERY_STEPS)
 
         eval_metric_ops = {
