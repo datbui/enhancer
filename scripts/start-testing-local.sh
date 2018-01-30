@@ -3,6 +3,6 @@
 echo 'Run testing....'
 pwd
 source ~/tensorflow/bin/activate
-python3 main.py --is_train=false --subset=test
+python3 main.py --is_train=false --dataset=test
 deactivate
 echo 'Testing has been completed'
