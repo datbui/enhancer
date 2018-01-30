@@ -145,6 +145,7 @@ def _psnr(mse):
 
 def run_testing(session, config=FLAGS):
     files = get_tfrecord_files(config)
+    logging.info('Total number of files  %d' % len(files))
 
     dataset = tf.contrib.data.TFRecordDataset(files)
     dataset = dataset.map(parse_function)
@@ -188,7 +189,6 @@ def run_testing(session, config=FLAGS):
 
 
 def main(_):
-    pp.pprint(FLAGS.__flags)
 
     if not os.path.exists(FLAGS.checkpoint_dir):
         os.makedirs(FLAGS.checkpoint_dir)
