@@ -132,13 +132,16 @@ def run_training(config=FLAGS):
         hparams=params  # HParams
     )
 
+
 def _mse(image1, image2):
     return np.square(np.subtract(image1, image2)).mean()
+
 
 def _psnr(mse):
     if mse == 0:
         return 100
     return -10. * np.log(mse) / np.log(10.)
+
 
 def run_testing(session, config=FLAGS):
     files = get_tfrecord_files(config)
@@ -174,7 +177,7 @@ def run_testing(session, config=FLAGS):
         psnr = _psnr(mse)
         ssim = compare_ssim(hr_image.squeeze(), np.asarray(prediction).squeeze())
         name = str(name[0]).replace('b\'', '').replace('\'', '')
-        print(name)
+        logging.info('Enhance resolution for %s' % name)
         writer.writerows([[name, initial_rmse, initial_psnr, initial_ssim, np.sqrt(mse), psnr, ssim]])
         save_image(image=prediction, path=os.path.join(config.output_dir, PREDICTION, '%s.jpg' % name))
         save_image(image=lr_image, path=os.path.join(config.output_dir, LOW_RESOLUTION, '%s.jpg' % name))
