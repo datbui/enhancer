@@ -22,11 +22,8 @@ def _float_feature(value):
 
 def _prepare_image(file, config):
     image = get_image(file, config.image_size, config.color_channels == 1)
-    low_quality_image = do_resize(image, [config.image_resize, ] * 2)
-    low_quality_image = do_resize(low_quality_image, [config.image_size, ] * 2)
     image = pre_process(image)
-    low_quality_image = pre_process(low_quality_image)
-    return low_quality_image, image
+    return image
 
 
 def _normalize(image):
@@ -48,13 +45,14 @@ def create_tfrecords(config=FLAGS):
     save_config(config.tfrecord_dir, config)
 
     highres_files = load_files(os.path.join(config.data_dir, config.dataset, config.subset, 'Highres'), config.extension)
+    print(os.path.join(config.data_dir, config.dataset, config.subset, 'Highres'))
     print("\nThere are %d files in %s dataset, subset %s\n" % (len(highres_files), config.dataset, config.subset))
     for file in highres_files:
         print(file)
         name = ntpath.basename(file).split('.')[0]
         lowres_filename = os.path.join(config.data_dir, config.dataset, config.subset, 'Lowres', '%s.%s' % (name, config.extension))
-        hr_image = pre_process(get_image(file, config.image_size, config.color_channels == 1))
-        lr_image = pre_process(get_image(lowres_filename, config.image_size, config.color_channels == 1))
+        hr_image = _prepare_image(file, config)
+        lr_image = _prepare_image(lowres_filename, config)
 
         # Create a feature and record
         feature = {
