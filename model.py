@@ -11,7 +11,7 @@ SUMMARY_EVERY_STEPS = 100
 
 def model_fn(features, labels, mode, params):
     learning_rate = params.learning_rate
-    filters_shape = [10, 5,  10, 5, 10]
+    filters_shape = [2, 1,  3, 2, 1]
     channels = 1
     device = '/device:%s:0' % params.device
     with tf.device(device):
