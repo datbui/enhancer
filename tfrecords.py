@@ -45,7 +45,6 @@ def create_tfrecords(config=FLAGS):
     save_config(config.tfrecord_dir, config)
 
     highres_files = load_files(os.path.join(config.data_dir, config.dataset, config.subset, 'Highres'), config.extension)
-    print(os.path.join(config.data_dir, config.dataset, config.subset, 'Highres'))
     print("\nThere are %d files in %s dataset, subset %s\n" % (len(highres_files), config.dataset, config.subset))
     for file in highres_files:
         print(file)

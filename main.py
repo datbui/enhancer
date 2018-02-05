@@ -13,7 +13,7 @@ from tensorflow.contrib.learn.python.learn import learn_runner
 
 from config import FLAGS
 from download import download_dataset
-from model import compute_psnr, compute_ssim, model_fn
+from model import model_fn, tf_psnr, tf_ssim
 from utils import get_tfrecord_files, parse_function, save_config, save_image, save_output
 
 PREDICTION = 'prediction'
@@ -115,10 +115,11 @@ def run_training(config=FLAGS):
 
     params = tf.contrib.training.HParams(
         learning_rate=config.learning_rate,
+        pkeep_conv=0.75,
         device=config.device,
         epoch=config.epoch,
         batch_size=config.batch_size,
-        min_eval_frequency=1000,
+        min_eval_frequency=500,
         train_steps=None,  # Use train feeder until its empty
         eval_steps=1,  # Use 1 step of evaluation feeder
         train_files=train_files
@@ -157,12 +158,13 @@ def run_testing(session, config=FLAGS):
     (lr_image, hr_image, name) = next_element
     tf_initial_mse = tf.losses.mean_squared_error(hr_image, lr_image)
     tf_initial_rmse = tf.sqrt(tf_initial_mse)
-    tf_initial_psnr = compute_psnr(tf_initial_mse)
-    tf_initial_ssim = compute_ssim(hr_image, lr_image)
+    tf_initial_psnr = tf_psnr(tf_initial_mse)
+    tf_initial_ssim = tf_ssim(hr_image, lr_image)
 
     params = tf.contrib.training.HParams(
         learning_rate=config.learning_rate,
         device=config.device,
+        pkeep_conv=1
     )
     run_config = tf.estimator.RunConfig(model_dir=config.checkpoint_dir)
     srcnn = get_estimator(run_config, params)
