@@ -24,8 +24,16 @@ Super resolution convolutional neural network(SRCNN) based on Tensorflow framewo
  * download.py - script to download image sets
  * tfrecords.py - script to create tfrecords 
  * model.py    - convolutional neural network model
- * main.py     - entry point 
- 
+ * main.py     - entry point
+
+## Result
+Banana
+![orig](https://github.com/datbui/enhancer/blob/master/sample/banana.jpg)<br>
+Surface of vinyl disc
+![orig](https://github.com/datbui/enhancer/blob/master/sample/surface_of_vinyl_disc.jpg)<br>
+Velcro
+![orig](https://github.com/datbui/enhancer/blob/master/sample/velcro.jpg)<br>
+
 ## References
  * [Chao Dong's article "Image Super-Resolution Using Deep Convolutional Networks"](http://mmlab.ie.cuhk.edu.hk/projects/SRCNN.html) 
  * [Another Tensorflow implementation of SRCNN](https://github.com/tegg89/SRCNN-Tensorflow) 
