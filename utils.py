@@ -48,29 +48,14 @@ def save_output(lr_img, prediction, hr_img, path):
     return scipy.misc.imsave(path, out_img)
 
 
-def save_images(images, size, image_path):
-    num_im = size[0] * size[1]
-    return _imsave(images[:num_im], size, image_path)
+def save_image(image, path):
+    out_img = _post_process(image)
+    return scipy.misc.imsave(path, out_img)
 
 
 def save_config(target_dir, config):
     with open(os.path.join(target_dir, CONFIG_TXT), 'w+') as writer:
         writer.write(str(config.__flags))
-
-
-def _imsave(images, size, path):
-    return scipy.misc.imsave(path, _merge(images, size))
-
-
-def _merge(images, size):
-    h, w = images.shape[1], images.shape[2]
-    img = np.zeros((h * size[0], w * size[1], 3))
-    for idx, image in enumerate(images):
-        i = idx % size[1]
-        j = idx // size[1]
-        img[j * h:j * h + h, i * w:i * w + w, :] = image
-
-    return img
 
 
 def do_resize(x, shape):

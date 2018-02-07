@@ -6,26 +6,26 @@ from config import FLAGS
 
 LOG_EVERY_STEPS = 10
 
-SUMMARY_EVERY_STEPS = 100
+SUMMARY_EVERY_STEPS = 50
 
 
 def model_fn(features, labels, mode, params):
     learning_rate = params.learning_rate
-    filters_shape = [2, 1,  3, 2, 1]
+    # Probability of keeping a node during dropout = 1.0 at test time (no dropout) and 0.75 at training time
+    pkeep_conv = params.pkeep_conv
+    filters_shape = [2, 1, 3, 2, 1]
     channels = 1
     device = '/device:%s:0' % params.device
     with tf.device(device):
         with tf.name_scope('inputs'):
             lr_images = features
             hr_images = labels
-
         with tf.name_scope('weights'):
             w1 = tf.Variable(tf.random_normal([filters_shape[0], filters_shape[0], channels, 64], stddev=1e-3), name='cnn_w1')
             w2 = tf.Variable(tf.random_normal([filters_shape[1], filters_shape[1], 64, 32], stddev=1e-3), name='cnn_w2')
             w3 = tf.Variable(tf.random_normal([filters_shape[2], filters_shape[2], 32, 16], stddev=1e-3), name='cnn_w3')
             w4 = tf.Variable(tf.random_normal([filters_shape[3], filters_shape[3], 16, 8], stddev=1e-3), name='cnn_w4')
             w5 = tf.Variable(tf.random_normal([filters_shape[4], filters_shape[4], 8, channels], stddev=1e-3), name='cnn_w5')
-
         with tf.name_scope('biases'):
             b1 = tf.Variable(tf.zeros([64]), name='cnn_b1')
             b2 = tf.Variable(tf.zeros([32]), name='cnn_b2')
@@ -36,10 +36,13 @@ def model_fn(features, labels, mode, params):
         with tf.name_scope('predictions'):
             conv1 = tf.nn.bias_add(tf.nn.conv2d(lr_images, w1, strides=[1, 1, 1, 1], padding='SAME'), b1, name='conv_1')
             conv1r = tf.nn.relu(conv1, name='relu_1')
+            conv1r = tf.nn.dropout(conv1r, pkeep_conv)
             conv2 = tf.nn.bias_add(tf.nn.conv2d(conv1r, w2, strides=[1, 1, 1, 1], padding='SAME'), b2, name='conv_2')
             conv2r = tf.nn.relu(conv2, name='relu_2')
+            conv2r = tf.nn.dropout(conv2r, pkeep_conv)
             conv3 = tf.nn.bias_add(tf.nn.conv2d(conv2r, w3, strides=[1, 1, 1, 1], padding='SAME'), b3, name='conv_3')
             conv3r = tf.nn.relu(conv3, name='relu_3')
+            conv3r = tf.nn.dropout(conv3r, pkeep_conv)
             conv4 = tf.nn.bias_add(tf.nn.conv2d(conv3r, w4, strides=[1, 1, 1, 1], padding='SAME'), b4, name='conv_4')
             conv4r = tf.nn.relu(conv4, name='relu_4')
             conv5 = tf.nn.bias_add(tf.nn.conv2d(conv4r, w5, strides=[1, 1, 1, 1], padding='SAME'), b5, name='conv_5')
@@ -49,30 +52,24 @@ def model_fn(features, labels, mode, params):
             with tf.name_scope('losses'):
                 mse = tf.losses.mean_squared_error(hr_images, predictions)
                 rmse = tf.sqrt(mse)
-                psnr = compute_psnr(mse)
-                ssim = compute_ssim(hr_images, predictions)
-                lr_hr_mse = tf.losses.mean_squared_error(hr_images, lr_images)
-                lr_hr_rmse = tf.sqrt(lr_hr_mse)
-                lr_hr_psnr = compute_psnr(lr_hr_mse)
-                lr_hr_ssim = compute_ssim(hr_images, lr_images)
+                psnr = tf_psnr(mse)
+                ssim = tf_ssim(hr_images, predictions)
+                loss = 0.75 * rmse + 0.25 * (1 - ssim)
             with tf.name_scope('train'):
-                train_op = tf.train.AdamOptimizer(learning_rate).minimize(mse, tf.train.get_global_step())
+                train_op = tf.train.AdamOptimizer(learning_rate).minimize(loss, tf.train.get_global_step())
 
     if mode in (Modes.TRAIN, Modes.EVAL):
         tf.summary.scalar('mse', mse)
         tf.summary.scalar('rmse', rmse)
         tf.summary.scalar('psnr', psnr)
         tf.summary.scalar('ssim', ssim)
-        tf.summary.scalar('lr_hr_mse', lr_hr_mse)
-        tf.summary.scalar('lr_hr_rmse', lr_hr_rmse)
-        tf.summary.scalar('lr_hr_psnr', lr_hr_psnr)
-        tf.summary.scalar('lr_hr_ssim', lr_hr_ssim)
+        tf.summary.scalar('loss', loss)
         # tf.summary.image('predictions', predictions, max_outputs=1)
 
         summary_op = tf.summary.merge_all()
         summary_hook = tf.train.SummarySaverHook(save_steps=SUMMARY_EVERY_STEPS, output_dir=FLAGS.summaries_dir, summary_op=summary_op)
 
-        logging_params = {'mse': mse, 'rmse': rmse, 'ssim': ssim, 'psnr': psnr, 'step': tf.train.get_global_step()}
+        logging_params = {'mse': mse, 'rmse': rmse, 'ssim': ssim, 'psnr': psnr, 'loss': loss, 'step': tf.train.get_global_step()}
         logging_hook = tf.train.LoggingTensorHook(logging_params, every_n_iter=LOG_EVERY_STEPS)
 
         eval_metric_ops = {
@@ -96,7 +93,6 @@ def model_fn(features, labels, mode, params):
             predictions=predictions,
             export_outputs=export_outputs
         )
-
     return estimator_spec
 
 
@@ -121,7 +117,19 @@ def _tf_fspecial_gauss(size, sigma):
     return g / tf.reduce_sum(g)
 
 
-def compute_ssim(img1, img2, cs_map=False, mean_metric=True, size=11, sigma=1.5):
+def tf_ssim(img1, img2, cs_map=False, mean_metric=True, size=11, sigma=1.5):
+    """
+    Compute structural similarity index metric.
+    https://stackoverflow.com/questions/39051451/ssim-ms-ssim-for-tensorflow
+
+    :param img1: an input image
+    :param img2: an input image
+    :param cs_map:
+    :param mean_metric:
+    :param size:
+    :param sigma:
+    :return: ssim
+    """
     window = _tf_fspecial_gauss(size, sigma)  # window shape [size, size]
     K1 = 0.01
     K2 = 0.03
@@ -149,7 +157,42 @@ def compute_ssim(img1, img2, cs_map=False, mean_metric=True, size=11, sigma=1.5)
     return value
 
 
-def compute_psnr(mse):
+def tf_ms_ssim(img1, img2, mean_metric=True, level=5):
+    """
+    Compute multi-scale structural similarity index metric.
+    https://stackoverflow.com/questions/39051451/ssim-ms-ssim-for-tensorflow
+
+    :param img1:
+    :param img2:
+    :param mean_metric:
+    :param level:
+    :return: msssim
+    """
+    weight = tf.constant([0.0448, 0.2856, 0.3001, 0.2363, 0.1333], dtype=tf.float32)
+    mssim = []
+    mcs = []
+    for l in range(level):
+        ssim_map, cs_map = tf_ssim(img1, img2, cs_map=True, mean_metric=False)
+        mssim.append(tf.reduce_mean(ssim_map))
+        mcs.append(tf.reduce_mean(cs_map))
+        filtered_im1 = tf.nn.avg_pool(img1, [1, 2, 2, 1], [1, 2, 2, 1], padding='SAME')
+        filtered_im2 = tf.nn.avg_pool(img2, [1, 2, 2, 1], [1, 2, 2, 1], padding='SAME')
+        img1 = filtered_im1
+        img2 = filtered_im2
+
+    # list to tensor of dim D+1
+    mssim = tf.stack(mssim, axis=0)
+    mcs = tf.stack(mcs, axis=0)
+
+    value = (tf.reduce_prod(mcs[0:level - 1] ** weight[0:level - 1]) *
+             (mssim[level - 1] ** weight[level - 1]))
+
+    if mean_metric:
+        value = tf.reduce_mean(value)
+    return value
+
+
+def tf_psnr(mse):
     """
     PSNR is Peek Signal to Noise Ratio, which is similar to mean squared error.
 

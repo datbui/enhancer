@@ -106,3 +106,4 @@ data/
 samples/
 tfrecords/
 checkpoint/
+./metrics.csv

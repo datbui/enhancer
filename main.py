@@ -1,17 +1,26 @@
+import csv
 import logging
 import logging.config
 import os
 import pprint
 from logging.handlers import RotatingFileHandler
 
+import numpy as np
 import tensorflow as tf
 import yaml
+from skimage.measure import compare_ssim
 from tensorflow.contrib.learn.python.learn import learn_runner
 
 from config import FLAGS
 from download import download_dataset
-from model import model_fn
-from utils import get_tfrecord_files, parse_function, save_config, save_output
+from model import model_fn, tf_psnr, tf_ssim
+from utils import get_tfrecord_files, parse_function, save_config, save_image, save_output
+
+PREDICTION = 'prediction'
+
+LOW_RESOLUTION = 'low_resolution'
+
+HIGH_RESOLUTION = 'high_resolution'
 
 pp = pprint.PrettyPrinter()
 
@@ -106,10 +115,11 @@ def run_training(config=FLAGS):
 
     params = tf.contrib.training.HParams(
         learning_rate=config.learning_rate,
+        pkeep_conv=0.75,
         device=config.device,
         epoch=config.epoch,
         batch_size=config.batch_size,
-        min_eval_frequency=1000,
+        min_eval_frequency=500,
         train_steps=None,  # Use train feeder until its empty
         eval_steps=1,  # Use 1 step of evaluation feeder
         train_files=train_files
@@ -124,37 +134,72 @@ def run_training(config=FLAGS):
     )
 
 
+def _mse(image1, image2):
+    return np.square(np.subtract(image1, image2)).mean()
+
+
+def _psnr(mse):
+    if mse == 0:
+        return 100
+    return -10. * np.log(mse) / np.log(10.)
+
+
 def run_testing(session, config=FLAGS):
     files = get_tfrecord_files(config)
+    logging.info('Total number of files  %d' % len(files))
 
     dataset = tf.contrib.data.TFRecordDataset(files)
     dataset = dataset.map(parse_function)
+    dataset = dataset.batch(1)
     iterator = dataset.make_initializable_iterator()
     next_element = iterator.get_next()
     session.run(iterator.initializer)
 
+    (lr_image, hr_image, name) = next_element
+    tf_initial_mse = tf.losses.mean_squared_error(hr_image, lr_image)
+    tf_initial_rmse = tf.sqrt(tf_initial_mse)
+    tf_initial_psnr = tf_psnr(tf_initial_mse)
+    tf_initial_ssim = tf_ssim(hr_image, lr_image)
+
     params = tf.contrib.training.HParams(
         learning_rate=config.learning_rate,
         device=config.device,
+        pkeep_conv=1
     )
     run_config = tf.estimator.RunConfig(model_dir=config.checkpoint_dir)
     srcnn = get_estimator(run_config, params)
 
     test_input_fn = get_input_fn(files, 1, False, config.batch_size)
     predict_results = srcnn.predict(test_input_fn)
+    params_file = open('metrics.csv', 'w+')
+    writer = csv.writer(params_file)
+
     for prediction in predict_results:
-        lr_image, hr_image, name = session.run(next_element)
+        initial_rmse, initial_psnr, initial_ssim, (lr_image, hr_image, name) = session.run([tf_initial_rmse, tf_initial_psnr, tf_initial_ssim, next_element])
+        mse = _mse(hr_image, prediction)
+        psnr = _psnr(mse)
+        ssim = compare_ssim(hr_image.squeeze(), np.asarray(prediction).squeeze())
+        name = str(name[0]).replace('b\'', '').replace('\'', '')
         logging.info('Enhance resolution for %s' % name)
-        save_output(lr_img=lr_image, prediction=prediction, hr_img=hr_image, path=os.path.join(config.log_dir, '%s.jpg' % name))
+        writer.writerows([[name, initial_rmse, initial_psnr, initial_ssim, np.sqrt(mse), psnr, ssim]])
+        save_image(image=prediction, path=os.path.join(config.output_dir, PREDICTION, '%s.jpg' % name))
+        save_image(image=lr_image, path=os.path.join(config.output_dir, LOW_RESOLUTION, '%s.jpg' % name))
+        save_image(image=hr_image, path=os.path.join(config.output_dir, HIGH_RESOLUTION, '%s.jpg' % name))
+        save_output(lr_img=lr_image, prediction=prediction, hr_img=hr_image, path=os.path.join(config.output_dir, '%s.jpg' % name))
+
+    params_file.close()
 
 
 def main(_):
-    pp.pprint(FLAGS.__flags)
 
     if not os.path.exists(FLAGS.checkpoint_dir):
         os.makedirs(FLAGS.checkpoint_dir)
     if not os.path.exists(FLAGS.log_dir):
         os.makedirs(FLAGS.log_dir)
+    if not os.path.exists(FLAGS.output_dir):
+        os.makedirs(os.path.join(FLAGS.output_dir, PREDICTION))
+        os.makedirs(os.path.join(FLAGS.output_dir, LOW_RESOLUTION))
+        os.makedirs(os.path.join(FLAGS.output_dir, HIGH_RESOLUTION))
     if not os.path.exists(FLAGS.summaries_dir):
         os.makedirs(FLAGS.summaries_dir)
     if not os.path.exists(os.path.join(FLAGS.data_dir, FLAGS.dataset)):
