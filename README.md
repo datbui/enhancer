@@ -27,11 +27,11 @@ Super resolution convolutional neural network(SRCNN) based on Tensorflow framewo
  * main.py     - entry point
 
 ## Result
-Banana
+Banana<br>
 ![orig](https://github.com/datbui/enhancer/blob/master/sample/banana.jpg)<br>
-Surface of vinyl disc
+Surface of vinyl disc<br>
 ![orig](https://github.com/datbui/enhancer/blob/master/sample/surface_of_vinyl_disc.jpg)<br>
-Velcro
+Velcro<br>
 ![orig](https://github.com/datbui/enhancer/blob/master/sample/velcro.jpg)<br>
 
 ## References
