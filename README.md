@@ -26,7 +26,7 @@ Super resolution convolutional neural network(SRCNN) based on Tensorflow framewo
  * model.py    - convolutional neural network model
  * main.py     - entry point
 
-## Result
+## Sample
 Banana<br>
 ![orig](https://github.com/datbui/enhancer/blob/master/sample/banana.jpg)<br>
 Surface of vinyl disc<br>
