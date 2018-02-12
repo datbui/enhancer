@@ -12,7 +12,7 @@ SUMMARY_EVERY_STEPS = 50
 def model_fn(features, labels, mode, params):
     learning_rate = params.learning_rate
     # Probability of keeping a node during dropout = 1.0 at test time (no dropout) and 0.75 at training time
-    pkeep_conv = params.pkeep_conv
+    pkeep_conv = tf.Variable(initial_value=params.pkeep_conv) if mode == Modes.TRAIN else tf.Constant(params.pkeep_conv)
     filters_shape = [2, 1, 3, 2, 1]
     channels = 1
     device = '/device:%s:0' % params.device
