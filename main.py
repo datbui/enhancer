@@ -124,9 +124,6 @@ def run_training(session, config=FLAGS):
         train_files=train_files
     )
     run_config = tf.contrib.learn.RunConfig(model_dir=config.checkpoint_dir)
-
-    load(session, config.checkpoint_dir)
-
     learn_runner.run(
         experiment_fn=experiment_fn,  # First-class function
         run_config=run_config,  # RunConfig
