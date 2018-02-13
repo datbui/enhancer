@@ -11,42 +11,15 @@ SUMMARY_EVERY_STEPS = 50
 
 def model_fn(features, labels, mode, params):
     learning_rate = params.learning_rate
-    filters_shape = [2, 1, 3, 2, 1]
-    channels = 1
     device = '/device:%s:0' % params.device
     with tf.device(device):
-        # Probability of keeping a node during dropout = 1.0 at test time (no dropout) and 0.75 at training time
-        pkeep_conv = tf.Variable(initial_value=params.pkeep_conv) if mode == Modes.TRAIN else tf.Constant(params.pkeep_conv)
         with tf.name_scope('inputs'):
             lr_images = features
             hr_images = labels
-        with tf.name_scope('weights'):
-            w1 = tf.Variable(tf.random_normal([filters_shape[0], filters_shape[0], channels, 64], stddev=1e-3), name='cnn_w1')
-            w2 = tf.Variable(tf.random_normal([filters_shape[1], filters_shape[1], 64, 32], stddev=1e-3), name='cnn_w2')
-            w3 = tf.Variable(tf.random_normal([filters_shape[2], filters_shape[2], 32, 16], stddev=1e-3), name='cnn_w3')
-            w4 = tf.Variable(tf.random_normal([filters_shape[3], filters_shape[3], 16, 8], stddev=1e-3), name='cnn_w4')
-            w5 = tf.Variable(tf.random_normal([filters_shape[4], filters_shape[4], 8, channels], stddev=1e-3), name='cnn_w5')
-        with tf.name_scope('biases'):
-            b1 = tf.Variable(tf.zeros([64]), name='cnn_b1')
-            b2 = tf.Variable(tf.zeros([32]), name='cnn_b2')
-            b3 = tf.Variable(tf.zeros([16]), name='cnn_b3')
-            b4 = tf.Variable(tf.zeros([8]), name='cnn_b4')
-            b5 = tf.Variable(tf.zeros([channels]), name='cnn_b5')
+            # Probability of keeping a node during dropout = 1.0 at test time (no dropout) and 0.75 at training time
+            pkeep_conv = tf.Variable(initial_value=params.pkeep_conv) if mode == Modes.TRAIN else tf.constant(params.pkeep_conv, dtype=tf.float32)
 
-        with tf.name_scope('predictions'):
-            conv1 = tf.nn.bias_add(tf.nn.conv2d(lr_images, w1, strides=[1, 1, 1, 1], padding='SAME'), b1, name='conv_1')
-            conv1r = tf.nn.relu(conv1, name='relu_1')
-            conv1r = tf.nn.dropout(conv1r, pkeep_conv)
-            conv2 = tf.nn.bias_add(tf.nn.conv2d(conv1r, w2, strides=[1, 1, 1, 1], padding='SAME'), b2, name='conv_2')
-            conv2r = tf.nn.relu(conv2, name='relu_2')
-            conv2r = tf.nn.dropout(conv2r, pkeep_conv)
-            conv3 = tf.nn.bias_add(tf.nn.conv2d(conv2r, w3, strides=[1, 1, 1, 1], padding='SAME'), b3, name='conv_3')
-            conv3r = tf.nn.relu(conv3, name='relu_3')
-            conv3r = tf.nn.dropout(conv3r, pkeep_conv)
-            conv4 = tf.nn.bias_add(tf.nn.conv2d(conv3r, w4, strides=[1, 1, 1, 1], padding='SAME'), b4, name='conv_4')
-            conv4r = tf.nn.relu(conv4, name='relu_4')
-            conv5 = tf.nn.bias_add(tf.nn.conv2d(conv4r, w5, strides=[1, 1, 1, 1], padding='SAME'), b5, name='conv_5')
-            predictions = conv5
+        predictions = srcnn(lr_images, pkeep_conv)
 
         if mode in (Modes.TRAIN, Modes.EVAL):
             with tf.name_scope('losses'):
@@ -94,6 +67,38 @@ def model_fn(features, labels, mode, params):
             export_outputs=export_outputs
         )
     return estimator_spec
+
+
+def srcnn(lr_images, pkeep_conv=1.0):
+    filters_shape = [2, 1, 3, 2, 1]
+    channels = 1
+    with tf.name_scope('weights'):
+        w1 = tf.Variable(tf.random_normal([filters_shape[0], filters_shape[0], channels, 64], stddev=1e-3), name='cnn_w1')
+        w2 = tf.Variable(tf.random_normal([filters_shape[1], filters_shape[1], 64, 32], stddev=1e-3), name='cnn_w2')
+        w3 = tf.Variable(tf.random_normal([filters_shape[2], filters_shape[2], 32, 16], stddev=1e-3), name='cnn_w3')
+        w4 = tf.Variable(tf.random_normal([filters_shape[3], filters_shape[3], 16, 8], stddev=1e-3), name='cnn_w4')
+        w5 = tf.Variable(tf.random_normal([filters_shape[4], filters_shape[4], 8, channels], stddev=1e-3), name='cnn_w5')
+    with tf.name_scope('biases'):
+        b1 = tf.Variable(tf.zeros([64]), name='cnn_b1')
+        b2 = tf.Variable(tf.zeros([32]), name='cnn_b2')
+        b3 = tf.Variable(tf.zeros([16]), name='cnn_b3')
+        b4 = tf.Variable(tf.zeros([8]), name='cnn_b4')
+        b5 = tf.Variable(tf.zeros([channels]), name='cnn_b5')
+    with tf.name_scope('predictions'):
+        conv1 = tf.nn.bias_add(tf.nn.conv2d(lr_images, w1, strides=[1, 1, 1, 1], padding='SAME'), b1, name='conv_1')
+        conv1r = tf.nn.relu(conv1, name='relu_1')
+        conv1r = tf.nn.dropout(conv1r, pkeep_conv)
+        conv2 = tf.nn.bias_add(tf.nn.conv2d(conv1r, w2, strides=[1, 1, 1, 1], padding='SAME'), b2, name='conv_2')
+        conv2r = tf.nn.relu(conv2, name='relu_2')
+        conv2r = tf.nn.dropout(conv2r, pkeep_conv)
+        conv3 = tf.nn.bias_add(tf.nn.conv2d(conv2r, w3, strides=[1, 1, 1, 1], padding='SAME'), b3, name='conv_3')
+        conv3r = tf.nn.relu(conv3, name='relu_3')
+        conv3r = tf.nn.dropout(conv3r, pkeep_conv)
+        conv4 = tf.nn.bias_add(tf.nn.conv2d(conv3r, w4, strides=[1, 1, 1, 1], padding='SAME'), b4, name='conv_4')
+        conv4r = tf.nn.relu(conv4, name='relu_4')
+        conv5 = tf.nn.bias_add(tf.nn.conv2d(conv4r, w5, strides=[1, 1, 1, 1], padding='SAME'), b5, name='conv_5')
+        predictions = conv5
+    return predictions
 
 
 def _tf_fspecial_gauss(size, sigma):
@@ -206,3 +211,12 @@ def tf_psnr(mse):
     Modify from https://github.com/titu1994/Image-Super-Resolution
     """
     return -10. * tf.log(mse) / tf.log(10.)
+
+
+def tf_intensity_normalization(image):
+    threshold = 200 / 255
+    additional_1 = tf.fill(tf.shape(image), 240 / 255)
+    image = tf.where(image > threshold, tf.add(tf.subtract(image, tf.reduce_mean(image)), additional_1), image)
+    additional_2 = tf.fill(tf.shape(image), 15 / 255)
+    image = tf.where(image < threshold, tf.add(image, additional_2), image)
+    return image
