@@ -105,7 +105,7 @@ def experiment_fn(run_config, params):
     return experiment
 
 
-def run_training(config=FLAGS):
+def run_training(session, config=FLAGS):
     save_config(config.summaries_dir, config)
 
     train_files = get_tfrecord_files(config)
@@ -125,12 +125,15 @@ def run_training(config=FLAGS):
     )
     run_config = tf.contrib.learn.RunConfig(model_dir=config.checkpoint_dir)
 
+    load(session, config.checkpoint_dir)
+
     learn_runner.run(
         experiment_fn=experiment_fn,  # First-class function
         run_config=run_config,  # RunConfig
         schedule="train",  # What to run
         hparams=params  # HParams
     )
+
 
 def load(session, checkpoint_dir):
     logging.info(" [*] Reading checkpoints...")
@@ -215,7 +218,7 @@ def main(_):
     # start the session
     with tf.Session(config=tf.ConfigProto(log_device_placement=True)) as sess:
         if FLAGS.is_train:
-            run_training()
+            run_training(sess)
         else:
             run_testing(sess)
 
