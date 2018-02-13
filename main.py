@@ -12,7 +12,7 @@ from tensorflow.contrib.learn.python.learn import learn_runner
 
 from config import FLAGS
 from download import download_dataset
-from model import model_fn, tf_psnr, tf_ssim, srcnn, tf_intensity_normalization, tf_ms_ssim
+from model import model_fn, srcnn, tf_psnr, tf_ssim
 from utils import get_tfrecord_files, parse_function, save_config, save_image, save_output
 
 PREDICTION = 'prediction'
@@ -132,27 +132,18 @@ def run_training(config=FLAGS):
         hparams=params  # HParams
     )
 
-
-def _mse(image1, image2):
-    return np.square(np.subtract(image1, image2)).mean()
-
-
-def _psnr(mse):
-    if mse == 0:
-        return 100
-    return -10. * np.log(mse) / np.log(10.)
-
 def load(session, checkpoint_dir):
-    print(" [*] Reading checkpoints...")
+    logging.info(" [*] Reading checkpoints...")
     ckpt = tf.train.get_checkpoint_state(checkpoint_dir)
     if ckpt and ckpt.model_checkpoint_path:
         ckpt_name = os.path.basename(ckpt.model_checkpoint_path)
         save_path = os.path.join(checkpoint_dir, ckpt_name)
-        print(save_path)
+        logging.info(save_path)
         tf.train.Saver().restore(session, save_path)
         return True
     else:
         return False
+
 
 def run_testing(session, config=FLAGS):
     files = get_tfrecord_files(config)
@@ -204,7 +195,6 @@ def run_testing(session, config=FLAGS):
 
 
 def main(_):
-
     if not os.path.exists(FLAGS.checkpoint_dir):
         os.makedirs(FLAGS.checkpoint_dir)
     if not os.path.exists(FLAGS.log_dir):
