@@ -69,7 +69,7 @@ def model_fn(features, labels, mode, params):
     return estimator_spec
 
 
-def srcnn(lr_images, pkeep_conv=1.0, device='/device:%CPU:0'):
+def srcnn(lr_images, pkeep_conv=1.0, device='/device:CPU:0'):
     filters_shape = [2, 1, 3, 2, 1]
     channels = 1
     with tf.device(device):
