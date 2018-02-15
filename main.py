@@ -110,7 +110,7 @@ def run_training(config=FLAGS):
     save_config(config.summaries_dir, config)
 
     train_files = get_tfrecord_files(config)
-    batch_number = min(len(train_files), config.train_size) // config.batch_size
+    batch_number = len(train_files) // config.batch_size
     logging.info('Total number of batches  %d' % batch_number)
 
     params = tf.contrib.training.HParams(
