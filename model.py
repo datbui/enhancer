@@ -1,3 +1,5 @@
+from math import ceil
+
 import numpy as np
 import tensorflow as tf
 from tensorflow.python.estimator.model_fn import ModeKeys as Modes
@@ -28,7 +30,7 @@ def model_fn(features, labels, mode, params):
                     rmse = tf.sqrt(mse)
                     psnr = tf_psnr(mse)
                     ssim = tf_ssim(hr_images, predictions)
-                    loss = 0.75 * rmse + 0.25 * (1 - ssim)
+                    loss = 0.5 * rmse + 0.25 * (1 - ssim) + 0.25 * tf_histogram_loss(hr_images, predictions)
                 with tf.name_scope('train'):
                     train_op = tf.train.AdamOptimizer(learning_rate).minimize(loss, tf.train.get_global_step())
 
@@ -214,6 +216,47 @@ def tf_psnr(mse):
     Modify from https://github.com/titu1994/Image-Super-Resolution
     """
     return -10. * tf.log(mse) / tf.log(10.)
+
+
+def tf_histogram_loss(img1, img2):
+    """
+    Calculate histogram loss between two images.
+
+    https://pdfs.semanticscholar.org/ece3/b623232c90bb8a9021a3eb25223c4fde7069.pdf
+
+    :param img1: an image normalized from 0 to 1
+    :param img2: an image normalized from 0 to 1
+    :return: MSE(hist_loss1, hist_loss2)
+    """
+    bins = ceil(255 / 5)
+    value_range = [0.0, 1.0]
+    step = 1.0 / bins
+    hist1 = tf.histogram_fixed_width(values=img1, value_range=value_range, nbins=bins, dtype=tf.float32)
+    hist2 = tf.histogram_fixed_width(values=img2, value_range=value_range, nbins=bins, dtype=tf.float32)
+    hist_loss1 = []
+    hist_loss2 = []
+    for i in range(bins):
+        base = i * step
+        amount = tf.gather(hist1, i)
+        pixels_in_range = tf.where(_tf_logic_range(img1, base, base + step), tf.div((img1 - base), step), tf.zeros(tf.shape(img1)))
+        hist_loss1.append(tf.reduce_sum(tf.divide(pixels_in_range, tf.where(amount > 0, amount, 1))))
+        amount = tf.gather(hist2, i)
+        pixels_in_range = tf.where(_tf_logic_range(img2, base, base + step), tf.div((img2 - base), step), tf.zeros(tf.shape(img2)))
+        hist_loss2.append(tf.reduce_sum(tf.divide(pixels_in_range, tf.where(amount > 0, amount, 1))))
+    hist_loss1 = tf.stack(hist_loss1, axis=0)
+    hist_loss2 = tf.stack(hist_loss2, axis=0)
+    return tf.losses.mean_squared_error(hist_loss1, hist_loss2)
+
+
+def _tf_logic_range(img, x, y):
+    """
+    Check inclusive range
+    :param img:
+    :param x:
+    :param y:
+    :return: boolean
+    """
+    return tf.logical_and(tf.greater_equal(img, x), tf.less_equal(img, y))
 
 
 def tf_intensity_normalization(image):
