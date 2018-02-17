@@ -117,10 +117,10 @@ def srcnn(lr_images, pkeep_conv=1.0, devices=['/device:CPU:0']):
 
 
 def _parametric_relu(_x, name):
-    alphas = tf.Variable(initial_value=0.1)
+    alphas = 0.1
     pos = tf.nn.relu(_x)
     neg = alphas * (_x - abs(_x)) * 0.5
-    prelu = tf.Variable((pos + neg), name=name)
+    prelu = tf.add(pos, neg, name=name)
     return prelu
 
 
