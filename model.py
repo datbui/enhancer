@@ -30,7 +30,7 @@ def model_fn(features, labels, mode, params):
                     rmse = tf.sqrt(mse)
                     psnr = tf_psnr(mse)
                     ssim = tf_ssim(hr_images, predictions)
-                    loss = 0.75 * rmse + 0.25 * (1 - ssim)
+                    loss = mse
                 with tf.name_scope('train'):
                     train_op = tf.train.AdamOptimizer(learning_rate).minimize(loss, tf.train.get_global_step())
 
