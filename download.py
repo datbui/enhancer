@@ -183,4 +183,6 @@ if __name__ == '__main__':
     if not args.datasets:
         raise Exception(" [!] You need to specify the name of datasets to download")
 
+    if not os.path.exists(os.path.join(FLAGS.data_dir, FLAGS.dataset)):
+        download_dataset(FLAGS.dataset)
     download_dataset(args.datasets)
