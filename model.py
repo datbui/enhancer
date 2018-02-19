@@ -86,7 +86,7 @@ def srcnn(lr_images, pkeep_conv=1.0, devices=['/device:CPU:0']):
                 w5 = tf.Variable(tf.random_normal([filters_shape[4], filters_shape[4], filters[3], filters[4]], stddev=1e-3), name='cnn_w5')
                 w6 = tf.Variable(tf.random_normal([filters_shape[5], filters_shape[5], filters[4], filters[5]], stddev=1e-3), name='cnn_w6')
                 w7 = tf.Variable(tf.random_normal([filters_shape[6], filters_shape[6], filters[5], filters[6]], stddev=1e-3), name='cnn_w7')
-                w8 = tf.Variable(tf.random_normal([filters_shape[7], filters_shape[7], filters[6], channels], stddev=1e-3), name='cnn_w8')
+                w8 = tf.Variable(tf.random_normal([filters_shape[7], filters_shape[7], channels, filters[6]], stddev=1e-3), name='cnn_w8')
             with tf.name_scope('biases'):
                 b1 = tf.Variable(tf.zeros(filters[0]), name='cnn_b1')
                 b2 = tf.Variable(tf.zeros(filters[1]), name='cnn_b2')
@@ -104,14 +104,14 @@ def srcnn(lr_images, pkeep_conv=1.0, devices=['/device:CPU:0']):
                 conv3 = tf.nn.bias_add(tf.nn.conv2d(conv2r, w3, strides=[1, 1, 1, 1], padding='SAME'), b3, name='conv_3')
                 conv3r = _parametric_relu(conv3, name='relu_3')
                 conv4 = tf.nn.bias_add(tf.nn.conv2d(conv3r, w4, strides=[1, 1, 1, 1], padding='SAME'), b4, name='conv_4')
-                conv4r =_parametric_relu(conv4, name='relu_4')
+                conv4r = _parametric_relu(conv4, name='relu_4')
                 conv5 = tf.nn.bias_add(tf.nn.conv2d(conv4r, w5, strides=[1, 1, 1, 1], padding='SAME'), b5, name='conv_5')
                 conv5r = _parametric_relu(conv5, name='relu_5')
                 conv6 = tf.nn.bias_add(tf.nn.conv2d(conv5r, w6, strides=[1, 1, 1, 1], padding='SAME'), b6, name='conv_6')
                 conv6r = _parametric_relu(conv6, name='relu_6')
                 conv7 = tf.nn.bias_add(tf.nn.conv2d(conv6r, w7, strides=[1, 1, 1, 1], padding='SAME'), b7, name='conv_7')
                 conv7r = _parametric_relu(conv7, name='relu_7')
-                conv8 = tf.nn.bias_add(tf.nn.conv2d(conv7r, w8, strides=[1, 1, 1, 1], padding='SAME'), b8, name='conv_8')
+                conv8 = tf.nn.bias_add(tf.nn.conv2d_transpose(conv7r, w8, output_shape=[FLAGS.batch_size, lr_images.shape[1].value, lr_images.shape[2].value, channels], strides=[1, 1, 1, 1], padding='SAME'), b8, name='conv_8')
                 predictions = conv8
     return predictions
 
