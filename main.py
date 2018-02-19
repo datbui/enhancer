@@ -207,14 +207,14 @@ def main(_):
         if FLAGS.is_train:
             if not os.path.exists(FLAGS.checkpoint_dir):
                 os.makedirs(FLAGS.checkpoint_dir)
-            if not os.path.exists(FLAGS.output_dir):
-                os.makedirs(os.path.join(FLAGS.output_dir, PREDICTION))
-                os.makedirs(os.path.join(FLAGS.output_dir, LOW_RESOLUTION))
-                os.makedirs(os.path.join(FLAGS.output_dir, HIGH_RESOLUTION))
             if not os.path.exists(FLAGS.summaries_dir):
                 os.makedirs(FLAGS.summaries_dir)
             run_training(sess)
         else:
+            if not os.path.exists(FLAGS.output_dir):
+                os.makedirs(os.path.join(FLAGS.output_dir, PREDICTION))
+                os.makedirs(os.path.join(FLAGS.output_dir, LOW_RESOLUTION))
+                os.makedirs(os.path.join(FLAGS.output_dir, HIGH_RESOLUTION))
             run_testing(sess)
 
 

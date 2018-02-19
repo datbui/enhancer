@@ -32,7 +32,7 @@ def model_fn(features, labels, mode, params):
                     ssim = tf_ssim(hr_images, predictions)
                     loss = mse
                 with tf.name_scope('train'):
-                    train_op = tf.train.AdamOptimizer(learning_rate).minimize(loss, tf.train.get_global_step())
+                    train_op = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss, tf.train.get_global_step())
 
     if mode in (Modes.TRAIN, Modes.EVAL):
         tf.summary.scalar('mse', mse)
