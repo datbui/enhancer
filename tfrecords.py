@@ -98,6 +98,8 @@ def test_tfrecords(config=FLAGS):
 
 
 if __name__ == '__main__':
+    if not os.path.exists(FLAGS.tfrecord_dir):
+        os.makedirs(FLAGS.tfrecord_dir)
     print("Start %s tfrecord files" % FLAGS.tfrecord_mode)
     if FLAGS.tfrecord_mode == 'create':
         create_tfrecords()
