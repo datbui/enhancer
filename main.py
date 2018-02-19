@@ -173,6 +173,7 @@ def run_testing(session, config=FLAGS):
     predict_results = srcnn.predict(test_input_fn)
     params_file = open('metrics.csv', 'w+')
     writer = csv.writer(params_file)
+    writer.writerows([['filename', 'initial_rmse', 'rmse', 'initial_psnr', 'psnr', 'initial_ssim', 'ssim']])
 
     for prediction in predict_results:
         initial_rmse, initial_psnr, initial_ssim, (lr_image, hr_image, name) = session.run([tf_initial_rmse, tf_initial_psnr, tf_initial_ssim, next_element])
@@ -181,7 +182,7 @@ def run_testing(session, config=FLAGS):
         ssim = compare_ssim(hr_image.squeeze(), np.asarray(prediction).squeeze())
         name = str(name[0]).replace('b\'', '').replace('\'', '')
         logging.info('Enhance resolution for %s' % name)
-        writer.writerows([[name, initial_rmse, initial_psnr, initial_ssim, np.sqrt(mse), psnr, ssim]])
+        writer.writerows([[name, initial_rmse, np.sqrt(mse), initial_psnr, psnr, initial_ssim, ssim]])
         save_image(image=prediction, path=os.path.join(config.output_dir, PREDICTION, '%s.jpg' % name))
         save_image(image=lr_image, path=os.path.join(config.output_dir, LOW_RESOLUTION, '%s.jpg' % name))
         save_image(image=hr_image, path=os.path.join(config.output_dir, HIGH_RESOLUTION, '%s.jpg' % name))
