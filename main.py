@@ -13,7 +13,7 @@ from tensorflow.contrib.learn.python.learn import learn_runner
 
 from config import FLAGS
 from download import download_dataset
-from model import model_fn, tf_psnr, tf_ssim
+from model import model_fn, srcnn, tf_psnr, tf_ssim
 from utils import get_tfrecord_files, parse_function, save_config, save_image, save_output
 
 PREDICTION = 'prediction'
@@ -106,7 +106,7 @@ def experiment_fn(run_config, params):
     return experiment
 
 
-def run_training(config=FLAGS):
+def run_training(session, config=FLAGS):
     save_config(config.summaries_dir, config)
 
     train_files = get_tfrecord_files(config)
@@ -125,7 +125,6 @@ def run_training(config=FLAGS):
         train_files=train_files
     )
     run_config = tf.contrib.learn.RunConfig(model_dir=config.checkpoint_dir)
-
     learn_runner.run(
         experiment_fn=experiment_fn,  # First-class function
         run_config=run_config,  # RunConfig
@@ -134,14 +133,17 @@ def run_training(config=FLAGS):
     )
 
 
-def _mse(image1, image2):
-    return np.square(np.subtract(image1, image2)).mean()
-
-
-def _psnr(mse):
-    if mse == 0:
-        return 100
-    return -10. * np.log(mse) / np.log(10.)
+def load(session, checkpoint_dir):
+    logging.info(" [*] Reading checkpoints...")
+    ckpt = tf.train.get_checkpoint_state(checkpoint_dir)
+    if ckpt and ckpt.model_checkpoint_path:
+        ckpt_name = os.path.basename(ckpt.model_checkpoint_path)
+        save_path = os.path.join(checkpoint_dir, ckpt_name)
+        logging.info(save_path)
+        tf.train.Saver().restore(session, save_path)
+        return True
+    else:
+        return False
 
 
 def run_testing(session, config=FLAGS):
@@ -155,41 +157,42 @@ def run_testing(session, config=FLAGS):
     next_element = iterator.get_next()
     session.run(iterator.initializer)
 
-    (lr_image, hr_image, name) = next_element
-    tf_initial_mse = tf.losses.mean_squared_error(hr_image, lr_image)
+    (tf_lr_image, tf_hr_image_tensor, _) = next_element
+    tf_initial_mse = tf.losses.mean_squared_error(tf_hr_image_tensor, tf_lr_image)
     tf_initial_rmse = tf.sqrt(tf_initial_mse)
     tf_initial_psnr = tf_psnr(tf_initial_mse)
-    tf_initial_ssim = tf_ssim(hr_image, lr_image)
+    tf_initial_ssim = tf_ssim(tf_hr_image_tensor, tf_lr_image)
 
-    params = tf.contrib.training.HParams(
-        learning_rate=config.learning_rate,
-        device=config.device,
-        pkeep_conv=1
-    )
-    run_config = tf.estimator.RunConfig(model_dir=config.checkpoint_dir)
-    srcnn = get_estimator(run_config, params)
+    tf_prediction = srcnn(tf_lr_image)
+    # tf_prediction = tf_intensity_normalization(tf_prediction)
+    predicted_mse = tf.losses.mean_squared_error(tf_hr_image_tensor, tf_prediction)
+    predicted_rmse = tf.sqrt(predicted_mse)
+    predicted_psnr = tf_psnr(predicted_mse)
+    predicted_ssim = tf_ssim(tf_hr_image_tensor, tf_prediction)
 
-    test_input_fn = get_input_fn(files, 1, False, config.batch_size)
-    predict_results = srcnn.predict(test_input_fn)
+    load(session, config.checkpoint_dir)
+
     params_file = open('metrics.csv', 'w+')
     writer = csv.writer(params_file)
     writer.writerows([['filename', 'initial_rmse', 'rmse', 'initial_psnr', 'psnr', 'initial_ssim', 'ssim']])
 
-    for prediction in predict_results:
-        initial_rmse, initial_psnr, initial_ssim, (lr_image, hr_image, name) = session.run([tf_initial_rmse, tf_initial_psnr, tf_initial_ssim, next_element])
-        mse = _mse(hr_image, prediction)
-        psnr = _psnr(mse)
-        ssim = compare_ssim(hr_image.squeeze(), np.asarray(prediction).squeeze())
-        name = str(name[0]).replace('b\'', '').replace('\'', '')
-        logging.info('Enhance resolution for %s' % name)
-        writer.writerows([[name, initial_rmse, np.sqrt(mse), initial_psnr, psnr, initial_ssim, ssim]])
-        save_image(image=prediction, path=os.path.join(config.output_dir, PREDICTION, '%s.jpg' % name))
-        save_image(image=lr_image, path=os.path.join(config.output_dir, LOW_RESOLUTION, '%s.jpg' % name))
-        save_image(image=hr_image, path=os.path.join(config.output_dir, HIGH_RESOLUTION, '%s.jpg' % name))
-        save_output(lr_img=lr_image, prediction=prediction, hr_img=hr_image, path=os.path.join(config.output_dir, '%s.jpg' % name))
+    while True:
+        try:
+            initial_rmse, initial_psnr, initial_ssim = session.run([tf_initial_rmse, tf_initial_psnr, tf_initial_ssim])
+            rmse, psnr, ssim = session.run([predicted_rmse, predicted_psnr, predicted_ssim])
+            (lr_image, hr_image, name), prediction = session.run([next_element, tf_prediction])
+            prediction = np.squeeze(prediction)
+            name = str(name[0]).replace('b\'', '').replace('\'', '')
+            logging.info('Enhance resolution for %s' % name)
+            writer.writerows([[name, initial_rmse, rmse, initial_psnr, psnr, initial_ssim, ssim]])
+            save_image(image=prediction, path=os.path.join(config.output_dir, PREDICTION, '%s.jpg' % name))
+            save_image(image=lr_image, path=os.path.join(config.output_dir, LOW_RESOLUTION, '%s.jpg' % name))
+            save_image(image=hr_image, path=os.path.join(config.output_dir, HIGH_RESOLUTION, '%s.jpg' % name))
+            save_output(lr_img=lr_image, prediction=prediction, hr_img=hr_image, path=os.path.join(config.output_dir, '%s.jpg' % name))
+        except tf.errors.OutOfRangeError:
+            break
 
     params_file.close()
-
 
 def main(_):
     if not os.path.exists(FLAGS.log_dir):
