@@ -8,11 +8,9 @@ from logging.handlers import RotatingFileHandler
 import numpy as np
 import tensorflow as tf
 import yaml
-from skimage.measure import compare_ssim
 from tensorflow.contrib.learn.python.learn import learn_runner
 
 from config import FLAGS
-from download import download_dataset
 from model import model_fn, srcnn, tf_psnr, tf_ssim
 from utils import get_tfrecord_files, parse_function, save_config, save_image, save_output
 
@@ -193,6 +191,7 @@ def run_testing(session, config=FLAGS):
             break
 
     params_file.close()
+
 
 def main(_):
     if not os.path.exists(FLAGS.log_dir):

@@ -8,7 +8,7 @@ from config import FLAGS
 
 LOG_EVERY_STEPS = 10
 
-SUMMARY_EVERY_STEPS = 50
+SUMMARY_EVERY_STEPS = 100
 
 
 def model_fn(features, labels, mode, params):
@@ -33,7 +33,7 @@ def model_fn(features, labels, mode, params):
                     loss = 0.75 * rmse + 0.25 * (1 - ssim)
                 with tf.name_scope('train'):
                     train_op = tf.train.AdamOptimizer(learning_rate).minimize(loss, tf.train.get_global_step())
-    
+
     if mode in (Modes.TRAIN, Modes.EVAL):
         tf.summary.scalar('mse', mse)
         tf.summary.scalar('rmse', rmse)
@@ -74,15 +74,16 @@ def model_fn(features, labels, mode, params):
 
 def srcnn(lr_images, pkeep_conv=1.0, devices=['/device:CPU:0']):
     filters_shape = [2, 1, 3, 2, 1]
+    filters = [64, 32, 16, 8]
     channels = 1
     for d in devices:
         with tf.device(d):
             with tf.name_scope('weights'):
-                w1 = tf.Variable(tf.random_normal([filters_shape[0], filters_shape[0], channels, 64], stddev=1e-3), name='cnn_w1')
-                w2 = tf.Variable(tf.random_normal([filters_shape[1], filters_shape[1], 64, 32], stddev=1e-3), name='cnn_w2')
-                w3 = tf.Variable(tf.random_normal([filters_shape[2], filters_shape[2], 32, 16], stddev=1e-3), name='cnn_w3')
-                w4 = tf.Variable(tf.random_normal([filters_shape[3], filters_shape[3], 16, 8], stddev=1e-3), name='cnn_w4')
-                w5 = tf.Variable(tf.random_normal([filters_shape[4], filters_shape[4], 8, channels], stddev=1e-3), name='cnn_w5')
+                w1 = tf.Variable(tf.random_normal([filters_shape[0], filters_shape[0], channels, filters[0]], stddev=1e-3), name='cnn_w1')
+                w2 = tf.Variable(tf.random_normal([filters_shape[1], filters_shape[1], filters[0], filters[1]], stddev=1e-3), name='cnn_w2')
+                w3 = tf.Variable(tf.random_normal([filters_shape[2], filters_shape[2], filters[1], filters[2]], stddev=1e-3), name='cnn_w3')
+                w4 = tf.Variable(tf.random_normal([filters_shape[3], filters_shape[3], filters[2], filters[3]], stddev=1e-3), name='cnn_w4')
+                w5 = tf.Variable(tf.random_normal([filters_shape[4], filters_shape[4], filters[3], channels], stddev=1e-3), name='cnn_w5')
             with tf.name_scope('biases'):
                 b1 = tf.Variable(tf.zeros([64]), name='cnn_b1')
                 b2 = tf.Variable(tf.zeros([32]), name='cnn_b2')
