@@ -8,7 +8,7 @@ from config import FLAGS
 
 LOG_EVERY_STEPS = 10
 
-SUMMARY_EVERY_STEPS = 100
+SUMMARY_EVERY_STEPS = 50
 
 
 def model_fn(features, labels, mode, params):
@@ -33,7 +33,7 @@ def model_fn(features, labels, mode, params):
                     loss = 0.75 * rmse + 0.25 * (1 - ssim)
                 with tf.name_scope('train'):
                     train_op = tf.train.AdamOptimizer(learning_rate).minimize(loss, tf.train.get_global_step())
-
+    
     if mode in (Modes.TRAIN, Modes.EVAL):
         tf.summary.scalar('mse', mse)
         tf.summary.scalar('rmse', rmse)

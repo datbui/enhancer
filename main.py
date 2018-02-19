@@ -8,6 +8,7 @@ from logging.handlers import RotatingFileHandler
 import numpy as np
 import tensorflow as tf
 import yaml
+from skimage.measure import compare_ssim
 from tensorflow.contrib.learn.python.learn import learn_runner
 
 from config import FLAGS
@@ -193,30 +194,25 @@ def run_testing(session, config=FLAGS):
 
     params_file.close()
 
-
 def main(_):
-    if not os.path.exists(FLAGS.checkpoint_dir):
-        os.makedirs(FLAGS.checkpoint_dir)
     if not os.path.exists(FLAGS.log_dir):
         os.makedirs(FLAGS.log_dir)
-    if not os.path.exists(FLAGS.output_dir):
-        os.makedirs(os.path.join(FLAGS.output_dir, PREDICTION))
-        os.makedirs(os.path.join(FLAGS.output_dir, LOW_RESOLUTION))
-        os.makedirs(os.path.join(FLAGS.output_dir, HIGH_RESOLUTION))
-    if not os.path.exists(FLAGS.summaries_dir):
-        os.makedirs(FLAGS.summaries_dir)
-    if not os.path.exists(os.path.join(FLAGS.data_dir, FLAGS.dataset)):
-        download_dataset(FLAGS.dataset)
-    if not os.path.exists(FLAGS.tfrecord_dir):
-        os.makedirs(FLAGS.tfrecord_dir)
 
     setup_logging()
 
     # start the session
     with tf.Session(config=tf.ConfigProto(log_device_placement=True)) as sess:
         if FLAGS.is_train:
+            if not os.path.exists(FLAGS.checkpoint_dir):
+                os.makedirs(FLAGS.checkpoint_dir)
+            if not os.path.exists(FLAGS.summaries_dir):
+                os.makedirs(FLAGS.summaries_dir)
             run_training(sess)
         else:
+            if not os.path.exists(FLAGS.output_dir):
+                os.makedirs(os.path.join(FLAGS.output_dir, PREDICTION))
+                os.makedirs(os.path.join(FLAGS.output_dir, LOW_RESOLUTION))
+                os.makedirs(os.path.join(FLAGS.output_dir, HIGH_RESOLUTION))
             run_testing(sess)
 
 
