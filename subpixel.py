@@ -2,7 +2,7 @@
 https://arxiv.org/abs/1609.05158
 https://github.com/tetrachrome/subpixel/blob/master/subpixel.py
 """
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import tensorflow as tf
 import numpy as np
 
@@ -39,5 +39,5 @@ if __name__ == "__main__":
         Y2 = PS(X2, 2, color=True)
         y2 = sess.run(Y2, feed_dict={X2: x2})
         print(y2.shape)
-    plt.imshow(y[0, :, :, 0], interpolation="none")
-    plt.show()
+    # plt.imshow(y[0, :, :, 0], interpolation="none")
+    # plt.show()
