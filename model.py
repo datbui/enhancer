@@ -116,7 +116,7 @@ def srcnn(lr_images, pkeep_conv=1.0, devices=['/device:CPU:0']):
                 conv6r = tf.nn.relu(conv6, name='relu_6')
                 conv6r = tf.nn.dropout(conv6r, pkeep_conv)
                 conv7 = tf.nn.bias_add(tf.nn.conv2d(conv6r, w7, strides=[1, 1, 1, 1], padding='SAME'), b7, name='conv_7')
-                ration = FLAGS.image_size / 512
+                ration = int(FLAGS.image_size / 512)
                 color = channels == 3
                 predictions = tf.nn.tanh(PS(conv7, ration, color))
     return predictions
