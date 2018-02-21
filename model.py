@@ -73,8 +73,9 @@ def model_fn(features, labels, mode, params):
 
 
 def srcnn(lr_images, pkeep_conv=1.0, devices=['/device:CPU:0']):
-    filters_shape = [7, 3, 5, 3, 5, 3, 2]
-    filters = [64, 48, 32, 48, 32, 64]
+    filters_shape = [3, 2, 1, 5, 2, 1, 2, 3]
+    filters = [256, 128, 64, 64, 128, 256]
+
     channels = 1
     for d in devices:
         with tf.device(d):
