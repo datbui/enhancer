@@ -229,24 +229,29 @@ def tf_histogram_loss(img1, img2):
     :param img2: an image normalized from 0 to 1
     :return: MSE(hist_loss1, hist_loss2)
     """
-    bins = ceil(255 / 5)
+    bins = np.math.ceil(255 / 5)
+    img1 = tf.cast(img1, dtype=tf.float32)
+    img2 = tf.cast(img2, dtype=tf.float32)
     value_range = [0.0, 1.0]
     step = 1.0 / bins
-    hist1 = tf.histogram_fixed_width(values=img1, value_range=value_range, nbins=bins, dtype=tf.float32)
-    hist2 = tf.histogram_fixed_width(values=img2, value_range=value_range, nbins=bins, dtype=tf.float32)
-    hist_loss1 = []
-    hist_loss2 = []
+    hist1 = tf.histogram_fixed_width(values=img1, value_range=value_range, nbins=bins, dtype=tf.int32)
+    hist2 = tf.histogram_fixed_width(values=img2, value_range=value_range, nbins=bins, dtype=tf.int32)
+    hist1_loss = []
+    hist2_loss = []
     for i in range(bins):
-        base = i * step
-        amount = tf.gather(hist1, i)
-        pixels_in_range = tf.where(_tf_logic_range(img1, base, base + step), tf.div((img1 - base), step), tf.zeros(tf.shape(img1)))
-        hist_loss1.append(tf.reduce_sum(tf.divide(pixels_in_range, tf.where(amount > 0, amount, 1))))
-        amount = tf.gather(hist2, i)
-        pixels_in_range = tf.where(_tf_logic_range(img2, base, base + step), tf.div((img2 - base), step), tf.zeros(tf.shape(img2)))
-        hist_loss2.append(tf.reduce_sum(tf.divide(pixels_in_range, tf.where(amount > 0, amount, 1))))
-    hist_loss1 = tf.stack(hist_loss1, axis=0)
-    hist_loss2 = tf.stack(hist_loss2, axis=0)
-    return tf.losses.mean_squared_error(hist_loss1, hist_loss2)
+        try:
+            base = i * step
+            amount = tf.cast(tf.gather(hist1, i), dtype=tf.float32)
+            pixels_in_range = tf.where(_tf_logic_range(img1, base, base + step), tf.div((img1 - base), step), tf.zeros(tf.shape(img1)))
+            hist1_loss.append(tf.reduce_sum(tf.divide(pixels_in_range, tf.where(amount > 0, amount, 1))))
+            amount = tf.cast(tf.gather(hist2, i), dtype=tf.float32)
+            pixels_in_range = tf.where(_tf_logic_range(img2, base, base + step), tf.div((img2 - base), step), tf.zeros(tf.shape(img2)))
+            hist2_loss.append(tf.reduce_sum(tf.divide(pixels_in_range, tf.where(amount > 0, amount, 1))))
+        except ValueError as e:
+            print(e)
+    hist1_loss = tf.stack(hist1_loss, axis=0)
+    hist2_loss = tf.stack(hist2_loss, axis=0)
+    return tf.losses.mean_squared_error(hist1_loss, hist2_loss)
 
 
 def _tf_logic_range(img, x, y):
