@@ -86,7 +86,7 @@ def srcnn(lr_images, pkeep_conv=1.0, devices=['/device:CPU:0']):
                 w5 = tf.Variable(tf.random_normal([filters_shape[4], filters_shape[4], filters[3], filters[4]], stddev=1e-3), name='cnn_w5')
                 w6 = tf.Variable(tf.random_normal([filters_shape[5], filters_shape[5], filters[4], filters[5]], stddev=1e-3), name='cnn_w6')
                 w7 = tf.Variable(tf.random_normal([filters_shape[6], filters_shape[6], filters[5], filters[6]], stddev=1e-3), name='cnn_w7')
-                w8 = tf.Variable(tf.random_normal([filters_shape[7], filters_shape[7], channels, filters[6]], stddev=1e-3), name='cnn_w8')
+                w8 = tf.Variable(tf.random_normal([filters_shape[7], filters_shape[7], filters[6], channels], stddev=1e-3), name='cnn_w8')
             with tf.name_scope('biases'):
                 b1 = tf.Variable(tf.zeros(filters[0]), name='cnn_b1')
                 b2 = tf.Variable(tf.zeros(filters[1]), name='cnn_b2')
@@ -111,9 +111,7 @@ def srcnn(lr_images, pkeep_conv=1.0, devices=['/device:CPU:0']):
                 conv6r = _parametric_relu(conv6, name='relu_6')
                 conv7 = tf.nn.bias_add(tf.nn.conv2d(conv6r, w7, strides=[1, 1, 1, 1], padding='SAME'), b7, name='conv_7')
                 conv7r = _parametric_relu(conv7, name='relu_7')
-                batch_size, a, b, c = lr_images.get_shape().as_list()
-                batch_size = tf.shape(lr_images)[0]  # Handling Dimension(None) type for undefined batch dim
-                conv8 = tf.nn.bias_add(tf.nn.conv2d_transpose(conv7r, w8, output_shape=[batch_size, a, b, c], strides=[1, 1, 1, 1], padding='SAME'), b8, name='conv_8')
+                conv8 = tf.nn.bias_add(tf.nn.conv2d(conv7r, w8, strides=[1, 1, 1, 1], padding='SAME'), b8, name='conv_8')
                 conv8r = _parametric_relu(conv8, name='relu_8')
                 predictions = conv8r
     return predictions
