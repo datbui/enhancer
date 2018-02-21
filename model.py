@@ -111,8 +111,11 @@ def srcnn(lr_images, pkeep_conv=1.0, devices=['/device:CPU:0']):
                 conv6r = _parametric_relu(conv6, name='relu_6')
                 conv7 = tf.nn.bias_add(tf.nn.conv2d(conv6r, w7, strides=[1, 1, 1, 1], padding='SAME'), b7, name='conv_7')
                 conv7r = _parametric_relu(conv7, name='relu_7')
-                conv8 = tf.nn.bias_add(tf.nn.conv2d_transpose(conv7r, w8, output_shape=[FLAGS.batch_size, lr_images.shape[1].value, lr_images.shape[2].value, channels], strides=[1, 1, 1, 1], padding='SAME'), b8, name='conv_8')
-                predictions = conv8
+                batch_size, a, b, c = lr_images.get_shape().as_list()
+                batch_size = tf.shape(lr_images)[0]  # Handling Dimension(None) type for undefined batch dim
+                conv8 = tf.nn.bias_add(tf.nn.conv2d_transpose(conv7r, w8, output_shape=[batch_size, a, b, c], strides=[1, 1, 1, 1], padding='SAME'), b8, name='conv_8')
+                conv8r = _parametric_relu(conv8, name='relu_8')
+                predictions = conv8r
     return predictions
 
 
