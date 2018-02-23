@@ -156,12 +156,13 @@ def run_testing(session, config=FLAGS):
     session.run(iterator.initializer)
 
     (tf_lr_image, tf_hr_image_tensor, _) = next_element
-    tf_initial_mse = tf.losses.mean_squared_error(tf_hr_image_tensor, tf_lr_image)
+    resize_images = tf.image.resize_images(tf_lr_image, [FLAGS.image_size, FLAGS.image_size])
+    tf_initial_mse = tf.losses.mean_squared_error(tf_hr_image_tensor, resize_images)
     tf_initial_rmse = tf.sqrt(tf_initial_mse)
     tf_initial_psnr = tf_psnr(tf_initial_mse)
-    tf_initial_ssim = tf_ssim(tf_hr_image_tensor, tf_lr_image)
+    tf_initial_ssim = tf_ssim(tf_hr_image_tensor, resize_images)
 
-    tf_prediction = srcnn(tf_lr_image)
+    tf_prediction = srcnn(tf_lr_image, FLAGS.image_size)
     # tf_prediction = tf_intensity_normalization(tf_prediction)
     predicted_mse = tf.losses.mean_squared_error(tf_hr_image_tensor, tf_prediction)
     predicted_rmse = tf.sqrt(predicted_mse)

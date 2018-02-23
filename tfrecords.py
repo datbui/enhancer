@@ -20,8 +20,8 @@ def _float_feature(value):
     return tf.train.Feature(float_list=tf.train.FloatList(value=value.flatten()))
 
 
-def _prepare_image(file, config):
-    image = get_image(file, config.image_size, config.color_channels == 1)
+def _prepare_image(file, size, colored=False):
+    image = get_image(file, size, colored)
     image = pre_process(image)
     return image
 
@@ -50,8 +50,8 @@ def create_tfrecords(config=FLAGS):
         print(file)
         name = ntpath.basename(file).split('.')[0]
         lowres_filename = os.path.join(config.data_dir, config.dataset, config.subset, 'Lowres', '%s.%s' % (name, config.extension))
-        hr_image = _prepare_image(file, config)
-        lr_image = _prepare_image(lowres_filename, config)
+        hr_image = _prepare_image(file, config.image_size, config.color_channels == 3)
+        lr_image = _prepare_image(lowres_filename, 256, config.color_channels == 3)
 
         # Create a feature and record
         feature = {

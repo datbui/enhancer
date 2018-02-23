@@ -34,8 +34,8 @@ def get_tfrecord_files(config):
     return load_files(os.path.join(config.tfrecord_dir, config.dataset, config.subset), TFRECORD)
 
 
-def get_image(image_path, image_size, is_black_white=True):
-    image = scipy.misc.imread(image_path, flatten=is_black_white, mode='YCbCr').astype(np.float32)
+def get_image(image_path, image_size, colored=False):
+    image = scipy.misc.imread(image_path, flatten=(not colored), mode='YCbCr').astype(np.float32)
     return do_resize(image, [image_size, image_size])
 
 
@@ -79,7 +79,7 @@ def parse_function(proto):
         DEPTH: tf.FixedLenFeature([], tf.int64),
         # TODO Reshape doesn't work, I have to put the shape here.
         HR_IMAGE: tf.FixedLenFeature((FLAGS.image_size, FLAGS.image_size, FLAGS.color_channels), tf.float32),
-        LR_IMAGE: tf.FixedLenFeature((FLAGS.image_size, FLAGS.image_size, FLAGS.color_channels), tf.float32),
+        LR_IMAGE: tf.FixedLenFeature((256, 256, FLAGS.color_channels), tf.float32),
         FILENAME: tf.FixedLenFeature([], tf.string)
     }
     parsed_features = tf.parse_single_example(proto, features)
