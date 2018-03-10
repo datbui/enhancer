@@ -76,10 +76,10 @@ def model_fn(features, labels, mode, params):
 def srcnn(lr_images, output_size, pkeep_conv=1.0, devices=['/device:CPU:0']):
     size = lr_images.get_shape().as_list()[1]
     ratio = int(output_size / size)
-    ratio = 2*ratio if ratio > 1  else ratio
+    output_channels = 2*ratio if ratio > 1  else ratio
     filters_shape = [2, 1, 3, 2, 3, 2, 1]
-    filters = [128, 128, 64, 64, 128, 128, ratio]
-    channels = 1
+    filters = [128, 128, 64, 64, 128, 128, output_channels]
+    channels = lr_images.get_shape().as_list()[3]
     for d in devices:
         with tf.device(d):
             with tf.name_scope('weights'):
