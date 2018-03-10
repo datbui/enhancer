@@ -184,7 +184,7 @@ def run_testing(session, config=FLAGS):
             name = str(name[0]).replace('b\'', '').replace('\'', '')
             logging.info('Enhance resolution for %s' % name)
             writer.writerows([[name, initial_rmse, rmse, initial_psnr, psnr, initial_ssim, ssim]])
-            save_image(image=prediction, path=os.path.join(config.output_dir, PREDICTION, '%s.jpg' % name))
+            save_image(image=prediction, path=os.path.join(config.output_dir, PREDICTION, '%s.jpg' % name), normalize=True)
             save_image(image=re_image, path=os.path.join(config.output_dir, LOW_RESOLUTION, '%s.jpg' % name))
             save_image(image=hr_image, path=os.path.join(config.output_dir, HIGH_RESOLUTION, '%s.jpg' % name))
             save_output(lr_img=re_image, prediction=prediction, hr_img=hr_image, path=os.path.join(config.output_dir, '%s.jpg' % name))

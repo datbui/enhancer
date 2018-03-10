@@ -41,15 +41,17 @@ def get_image(image_path, image_size, colored=False):
 
 def save_output(lr_img, prediction, hr_img, path):
     h = max(hr_img.shape[0], prediction.shape[0], hr_img.shape[0])
-    eh_img = do_resize(_post_process(prediction), [h, hr_img.shape[1]])
+    eh_img = _intensity_normalization(do_resize(_post_process(prediction), [h, hr_img.shape[1]]))
     lr_img = _post_process(lr_img)
     hr_img = _post_process(hr_img)
     out_img = np.concatenate((lr_img, eh_img, hr_img), axis=1)
     return scipy.misc.imsave(path, out_img)
 
 
-def save_image(image, path):
+def save_image(image, path, normalize=False):
     out_img = _post_process(image)
+    if normalize:
+        out_img = _intensity_normalization(out_img)
     return scipy.misc.imsave(path, out_img)
 
 
@@ -65,6 +67,14 @@ def do_resize(x, shape):
 
 def _unnormalize(image):
     return image * 255.
+
+
+def _intensity_normalization(image):
+    threshold = 200
+    image = np.where(image < threshold, (image + 40), image)
+    mean = np.mean(np.where(image > threshold))
+    image = np.where(image > threshold, (image - mean + 240), image)
+    return image
 
 
 def _post_process(images):
