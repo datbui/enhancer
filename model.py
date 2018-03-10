@@ -76,9 +76,10 @@ def model_fn(features, labels, mode, params):
 def srcnn(lr_images, output_size, pkeep_conv=1.0, devices=['/device:CPU:0']):
     size = lr_images.get_shape().as_list()[1]
     ratio = int(output_size / size)
+    output_channels = 2*ratio if ratio > 1 else ratio
     filters_shape = [2, 1, 3, 2, 1]
-    filters = [64, 32, 16, 8, 2*ratio]
-    channels = 1
+    filters = [64, 32, 16, 8, output_channels]
+    channels = lr_images.get_shape().as_list()[3]
     for d in devices:
         with tf.device(d):
             with tf.name_scope('weights'):
@@ -107,7 +108,7 @@ def srcnn(lr_images, output_size, pkeep_conv=1.0, devices=['/device:CPU:0']):
                 conv4r = tf.nn.relu(conv4, name='relu_4')
                 conv5 = tf.nn.bias_add(tf.nn.conv2d(conv4r, w5, strides=[1, 1, 1, 1], padding='SAME'), b5, name='conv_5')
                 upscaled = tf.tanh(phase_shift(conv5, ratio))
-                predictions = upscaled
+                predictions = upscaled if ratio > 1 else conv5
     return predictions
 
 

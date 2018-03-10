@@ -163,7 +163,8 @@ def run_testing(session, config=FLAGS):
     tf_initial_ssim = tf_ssim(tf_hr_image_tensor, tf_re_image)
 
     tf_prediction = srcnn(tf_lr_image, FLAGS.image_size)
-    # tf_prediction = tf_intensity_normalization(tf_prediction)
+    tf.initialize_all_variables().run()
+
     predicted_mse = tf.losses.mean_squared_error(tf_hr_image_tensor, tf_prediction)
     predicted_rmse = tf.sqrt(predicted_mse)
     predicted_psnr = tf_psnr(predicted_mse)
