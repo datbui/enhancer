@@ -41,7 +41,7 @@ def get_image(image_path, image_size, colored=False):
 
 def save_output(lr_img, prediction, hr_img, path):
     h = max(hr_img.shape[0], prediction.shape[0], hr_img.shape[0])
-    eh_img = _intensity_normalization(do_resize(_post_process(prediction), [h, hr_img.shape[1]]))
+    eh_img = do_resize(_post_process(prediction), [h, hr_img.shape[1]])
     lr_img = _post_process(lr_img)
     hr_img = _post_process(hr_img)
     out_img = np.concatenate((lr_img, eh_img, hr_img), axis=1)

@@ -148,14 +148,13 @@ def run_testing(session, config=FLAGS):
     files = get_tfrecord_files(config)
     logging.info('Total number of files  %d' % len(files))
 
-    dataset = tf.contrib.data.TFRecordDataset(files)
+    dataset = tf.data.TFRecordDataset(files, buffer_size=10000)
     dataset = dataset.map(parse_function)
     dataset = dataset.batch(1)
-    iterator = dataset.make_initializable_iterator()
-    next_element = iterator.get_next()
-    session.run(iterator.initializer)
+    iterator = dataset.make_one_shot_iterator()
+    tf_next_element = iterator.get_next()
 
-    (tf_lr_image, tf_hr_image_tensor, _) = next_element
+    (tf_lr_image, tf_hr_image_tensor, _) = tf_next_element
     tf_re_image = tf.image.resize_images(tf_lr_image, [FLAGS.image_size, FLAGS.image_size])
     tf_initial_mse = tf.losses.mean_squared_error(tf_hr_image_tensor, tf_re_image)
     tf_initial_rmse = tf.sqrt(tf_initial_mse)
@@ -178,14 +177,17 @@ def run_testing(session, config=FLAGS):
 
     while True:
         try:
-            initial_rmse, initial_psnr, initial_ssim = session.run([tf_initial_rmse, tf_initial_psnr, tf_initial_ssim])
-            rmse, psnr, ssim = session.run([predicted_rmse, predicted_psnr, predicted_ssim])
-            (lr_image, hr_image, name), re_image, prediction = session.run([next_element, tf_re_image, tf_prediction])
+            tf_initial_params = [tf_initial_rmse, tf_initial_psnr, tf_initial_ssim]
+            tf_predicted_params = [predicted_rmse, predicted_psnr, predicted_ssim]
+            next_element, re_image, prediction, initial_params, predicted_params = session.run([tf_next_element, tf_re_image, tf_prediction, tf_initial_params, tf_predicted_params])
+            (lr_image, hr_image, name) = next_element
+            (initial_rmse, initial_psnr, initial_ssim) = initial_params
+            (rmse, psnr, ssim) = predicted_params
             prediction = np.squeeze(prediction)
             name = str(name[0]).replace('b\'', '').replace('\'', '')
             logging.info('Enhance resolution for %s' % name)
             writer.writerows([[name, initial_rmse, rmse, initial_psnr, psnr, initial_ssim, ssim]])
-            save_image(image=prediction, path=os.path.join(config.output_dir, PREDICTION, '%s.jpg' % name), normalize=True)
+            save_image(image=prediction, path=os.path.join(config.output_dir, PREDICTION, '%s.jpg' % name))
             save_image(image=re_image, path=os.path.join(config.output_dir, LOW_RESOLUTION, '%s.jpg' % name))
             save_image(image=hr_image, path=os.path.join(config.output_dir, HIGH_RESOLUTION, '%s.jpg' % name))
             save_output(lr_img=re_image, prediction=prediction, hr_img=hr_image, path=os.path.join(config.output_dir, '%s.jpg' % name))
