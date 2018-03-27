@@ -1,4 +1,4 @@
-from math import ceil
+
 
 import numpy as np
 import tensorflow as tf
@@ -24,7 +24,7 @@ def model_fn(features, labels, mode, params):
                 pkeep_conv = tf.Variable(initial_value=params.pkeep_conv) if mode == Modes.TRAIN else tf.constant(params.pkeep_conv, dtype=tf.float32)
 
             size = labels.get_shape().as_list()[1]
-            predictions = srcnn(lr_images, size, pkeep_conv, devices)
+            predictions = escnn(lr_images, size, devices)
 
             if mode in (Modes.TRAIN, Modes.EVAL):
                 with tf.name_scope('losses'):
@@ -111,6 +111,32 @@ def srcnn(lr_images, output_size, pkeep_conv=1.0, devices=['/device:CPU:0']):
                 predictions = upscaled if ratio > 1 else conv5
     return predictions
 
+def escnn(lr_images, output_size, devices=['/device:CPU:0']):
+    size = lr_images.get_shape().as_list()[1]
+    ratio = int(output_size / size)
+    output_channels = 2 * ratio if ratio > 1 else ratio
+    filters_shape = [9, 3, 3]
+    filters = [64, 32, output_channels]
+    channels = lr_images.get_shape().as_list()[3]
+    for d in devices:
+        with tf.device(d):
+            with tf.name_scope('weights'):
+                w1 = tf.Variable(tf.random_normal([filters_shape[0], filters_shape[0], channels, filters[0]], stddev=1e-3), name='cnn_w1')
+                w2 = tf.Variable(tf.random_normal([filters_shape[1], filters_shape[1], filters[0], filters[1]], stddev=1e-3), name='cnn_w2')
+                w3 = tf.Variable(tf.random_normal([filters_shape[2], filters_shape[2], filters[1], filters[2]], stddev=1e-3), name='cnn_w3')
+            with tf.name_scope('biases'):
+                b1 = tf.Variable(tf.zeros(filters[0]), name='cnn_b1')
+                b2 = tf.Variable(tf.zeros(filters[1]), name='cnn_b2')
+                b3 = tf.Variable(tf.zeros(filters[2]), name='cnn_b3')
+            with tf.name_scope('predictions'):
+                conv1 = tf.nn.bias_add(tf.nn.conv2d(lr_images, w1, strides=[1, 1, 1, 1], padding='SAME'), b1, name='conv_1')
+                conv1r = tf.nn.relu(conv1, name='relu_1')
+                conv2 = tf.nn.bias_add(tf.nn.conv2d(conv1r, w2, strides=[1, 1, 1, 1], padding='SAME'), b2, name='conv_2')
+                conv2r = tf.nn.relu(conv2, name='relu_2')
+                conv3 = tf.nn.bias_add(tf.nn.conv2d(conv2r, w3, strides=[1, 1, 1, 1], padding='SAME'), b3, name='conv_3')
+                upscaled = tf.tanh(phase_shift(conv3, ratio))
+                predictions = upscaled if ratio > 1 else conv3
+    return predictions
 
 def _tf_fspecial_gauss(size, sigma):
     """Function to mimic the 'fspecial' gaussian MATLAB function

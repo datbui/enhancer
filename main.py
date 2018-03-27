@@ -11,7 +11,7 @@ import yaml
 from tensorflow.contrib.learn.python.learn import learn_runner
 
 from config import FLAGS
-from model import model_fn, srcnn, tf_psnr, tf_ssim
+from model import escnn, model_fn, tf_psnr, tf_ssim
 from utils import get_tfrecord_files, parse_function, save_config, save_image, save_output
 
 PREDICTION = 'prediction'
@@ -161,7 +161,7 @@ def run_testing(session, config=FLAGS):
     tf_initial_psnr = tf_psnr(tf_initial_mse)
     tf_initial_ssim = tf_ssim(tf_hr_image_tensor, tf_re_image)
 
-    tf_prediction = srcnn(tf_lr_image, FLAGS.image_size)
+    tf_prediction = escnn(tf_lr_image, FLAGS.image_size)
     tf.initialize_all_variables().run()
 
     predicted_mse = tf.losses.mean_squared_error(tf_hr_image_tensor, tf_prediction)
