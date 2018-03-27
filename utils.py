@@ -36,7 +36,8 @@ def get_tfrecord_files(config):
 
 def get_image(image_path, image_size, colored=False):
     image = scipy.misc.imread(image_path, flatten=(not colored), mode='YCbCr').astype(np.float32)
-    return do_resize(image, [image_size, image_size])
+    image = do_resize(image, [image_size, image_size])
+    return _pre_process(image)
 
 
 def save_output(lr_img, prediction, hr_img, path):
@@ -67,6 +68,16 @@ def do_resize(x, shape):
 
 def _unnormalize(image):
     return image * 255.
+
+
+def _normalize(image):
+    return image / 255.
+
+
+def _pre_process(images):
+    pre_processed = _normalize(np.asarray(images))
+    pre_processed = pre_processed[:, :, np.newaxis] if len(pre_processed.shape) == 2 else pre_processed
+    return pre_processed
 
 
 def _intensity_normalization(image):
