@@ -97,13 +97,10 @@ def srcnn(lr_images, output_size, pkeep_conv=1.0, devices=['/device:CPU:0']):
             with tf.name_scope('predictions'):
                 conv1 = tf.nn.bias_add(tf.nn.conv2d(lr_images, w1, strides=[1, 1, 1, 1], padding='SAME'), b1, name='conv_1')
                 conv1r = tf.nn.relu(conv1, name='relu_1')
-                conv1r = tf.nn.dropout(conv1r, pkeep_conv)
                 conv2 = tf.nn.bias_add(tf.nn.conv2d(conv1r, w2, strides=[1, 1, 1, 1], padding='SAME'), b2, name='conv_2')
                 conv2r = tf.nn.relu(conv2, name='relu_2')
-                conv2r = tf.nn.dropout(conv2r, pkeep_conv)
                 conv3 = tf.nn.bias_add(tf.nn.conv2d(conv2r, w3, strides=[1, 1, 1, 1], padding='SAME'), b3, name='conv_3')
                 conv3r = tf.nn.relu(conv3, name='relu_3')
-                conv3r = tf.nn.dropout(conv3r, pkeep_conv)
                 conv4 = tf.nn.bias_add(tf.nn.conv2d(conv3r, w4, strides=[1, 1, 1, 1], padding='SAME'), b4, name='conv_4')
                 conv4r = tf.nn.relu(conv4, name='relu_4')
                 conv5 = tf.nn.bias_add(tf.nn.conv2d(conv4r, w5, strides=[1, 1, 1, 1], padding='SAME'), b5, name='conv_5')
