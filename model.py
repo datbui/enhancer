@@ -76,7 +76,7 @@ def model_fn(features, labels, mode, params):
 def srcnn(lr_images, output_size, pkeep_conv=1.0, devices=['/device:CPU:0']):
     size = lr_images.get_shape().as_list()[1]
     ratio = int(output_size / size)
-    output_channels = 2*ratio if ratio > 1 else ratio
+    output_channels = ratio*ratio if ratio > 1 else ratio
     filters_shape = [2, 1, 3, 2, 1]
     filters = [64, 32, 16, 8, output_channels]
     channels = lr_images.get_shape().as_list()[3]

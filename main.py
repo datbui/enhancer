@@ -61,7 +61,7 @@ def get_estimator(run_config=None, params=None):
 
 
 def input_fn(filenames, epoch, shuffle, batch_size):
-    dataset = tf.contrib.data.TFRecordDataset(filenames)
+    dataset = tf.data.TFRecordDataset(filenames)
     dataset = dataset.map(parse_function)
     dataset = dataset.repeat(epoch)
     if shuffle:
