@@ -8,11 +8,9 @@ from logging.handlers import RotatingFileHandler
 import numpy as np
 import tensorflow as tf
 import yaml
-from skimage.measure import compare_ssim
 from tensorflow.contrib.learn.python.learn import learn_runner
 
 from config import FLAGS
-from download import download_dataset
 from model import model_fn, srcnn, tf_psnr, tf_ssim
 from utils import get_tfrecord_files, parse_function, save_config, save_image, save_output
 
@@ -63,7 +61,7 @@ def get_estimator(run_config=None, params=None):
 
 
 def input_fn(filenames, epoch, shuffle, batch_size):
-    dataset = tf.contrib.data.TFRecordDataset(filenames)
+    dataset = tf.data.TFRecordDataset(filenames)
     dataset = dataset.map(parse_function)
     dataset = dataset.repeat(epoch)
     if shuffle:
@@ -150,21 +148,22 @@ def run_testing(session, config=FLAGS):
     files = get_tfrecord_files(config)
     logging.info('Total number of files  %d' % len(files))
 
-    dataset = tf.contrib.data.TFRecordDataset(files)
+    dataset = tf.data.TFRecordDataset(files, buffer_size=10000)
     dataset = dataset.map(parse_function)
     dataset = dataset.batch(1)
-    iterator = dataset.make_initializable_iterator()
-    next_element = iterator.get_next()
-    session.run(iterator.initializer)
+    iterator = dataset.make_one_shot_iterator()
+    tf_next_element = iterator.get_next()
 
-    (tf_lr_image, tf_hr_image_tensor, _) = next_element
-    tf_initial_mse = tf.losses.mean_squared_error(tf_hr_image_tensor, tf_lr_image)
+    (tf_lr_image, tf_hr_image_tensor, _) = tf_next_element
+    tf_re_image = tf.image.resize_images(tf_lr_image, [FLAGS.image_size, FLAGS.image_size])
+    tf_initial_mse = tf.losses.mean_squared_error(tf_hr_image_tensor, tf_re_image)
     tf_initial_rmse = tf.sqrt(tf_initial_mse)
     tf_initial_psnr = tf_psnr(tf_initial_mse)
-    tf_initial_ssim = tf_ssim(tf_hr_image_tensor, tf_lr_image)
+    tf_initial_ssim = tf_ssim(tf_hr_image_tensor, tf_re_image)
 
-    tf_prediction = srcnn(tf_lr_image)
-    # tf_prediction = tf_intensity_normalization(tf_prediction)
+    tf_prediction = srcnn(tf_lr_image, FLAGS.image_size)
+    tf.initialize_all_variables().run()
+
     predicted_mse = tf.losses.mean_squared_error(tf_hr_image_tensor, tf_prediction)
     predicted_rmse = tf.sqrt(predicted_mse)
     predicted_psnr = tf_psnr(predicted_mse)
@@ -178,21 +177,26 @@ def run_testing(session, config=FLAGS):
 
     while True:
         try:
-            initial_rmse, initial_psnr, initial_ssim = session.run([tf_initial_rmse, tf_initial_psnr, tf_initial_ssim])
-            rmse, psnr, ssim = session.run([predicted_rmse, predicted_psnr, predicted_ssim])
-            (lr_image, hr_image, name), prediction = session.run([next_element, tf_prediction])
+            tf_initial_params = [tf_initial_rmse, tf_initial_psnr, tf_initial_ssim]
+            tf_predicted_params = [predicted_rmse, predicted_psnr, predicted_ssim]
+            next_element, re_image, prediction, initial_params, predicted_params = session.run([tf_next_element, tf_re_image, tf_prediction, tf_initial_params, tf_predicted_params])
+            (lr_image, hr_image, name) = next_element
+            (initial_rmse, initial_psnr, initial_ssim) = initial_params
+            (rmse, psnr, ssim) = predicted_params
             prediction = np.squeeze(prediction)
             name = str(name[0]).replace('b\'', '').replace('\'', '')
             logging.info('Enhance resolution for %s' % name)
             writer.writerows([[name, initial_rmse, rmse, initial_psnr, psnr, initial_ssim, ssim]])
             save_image(image=prediction, path=os.path.join(config.output_dir, PREDICTION, '%s.jpg' % name))
-            save_image(image=lr_image, path=os.path.join(config.output_dir, LOW_RESOLUTION, '%s.jpg' % name))
+            save_image(image=re_image, path=os.path.join(config.output_dir, LOW_RESOLUTION, '%s.jpg' % name))
             save_image(image=hr_image, path=os.path.join(config.output_dir, HIGH_RESOLUTION, '%s.jpg' % name))
-            save_output(lr_img=lr_image, prediction=prediction, hr_img=hr_image, path=os.path.join(config.output_dir, '%s.jpg' % name))
-        except tf.errors.OutOfRangeError:
+            save_output(lr_img=re_image, prediction=prediction, hr_img=hr_image, path=os.path.join(config.output_dir, '%s.jpg' % name))
+        except tf.errors.OutOfRangeError as e:
+            logging.error(e)
             break
 
     params_file.close()
+
 
 def main(_):
     if not os.path.exists(FLAGS.log_dir):

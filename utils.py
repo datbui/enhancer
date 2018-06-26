@@ -34,9 +34,10 @@ def get_tfrecord_files(config):
     return load_files(os.path.join(config.tfrecord_dir, config.dataset, config.subset), TFRECORD)
 
 
-def get_image(image_path, image_size, is_black_white=True):
-    image = scipy.misc.imread(image_path, flatten=is_black_white, mode='YCbCr').astype(np.float32)
-    return do_resize(image, [image_size, image_size])
+def get_image(image_path, image_size, colored=False):
+    image = scipy.misc.imread(image_path, flatten=(not colored), mode='YCbCr').astype(np.float32)
+    image = do_resize(image, [image_size, image_size])
+    return _pre_process(image)
 
 
 def save_output(lr_img, prediction, hr_img, path):
@@ -48,8 +49,10 @@ def save_output(lr_img, prediction, hr_img, path):
     return scipy.misc.imsave(path, out_img)
 
 
-def save_image(image, path):
+def save_image(image, path, normalize=False):
     out_img = _post_process(image)
+    if normalize:
+        out_img = _intensity_normalization(out_img)
     return scipy.misc.imsave(path, out_img)
 
 
@@ -67,6 +70,24 @@ def _unnormalize(image):
     return image * 255.
 
 
+def _normalize(image):
+    return image / 255.
+
+
+def _pre_process(images):
+    pre_processed = _normalize(np.asarray(images))
+    pre_processed = pre_processed[:, :, np.newaxis] if len(pre_processed.shape) == 2 else pre_processed
+    return pre_processed
+
+
+def _intensity_normalization(image):
+    threshold = 200
+    image = np.where(image < threshold, (image + 40), image)
+    mean = np.mean(np.where(image > threshold))
+    image = np.where(image > threshold, (image - mean + 240), image)
+    return image
+
+
 def _post_process(images):
     post_processed = _unnormalize(images)
     return post_processed.squeeze()
@@ -79,7 +100,7 @@ def parse_function(proto):
         DEPTH: tf.FixedLenFeature([], tf.int64),
         # TODO Reshape doesn't work, I have to put the shape here.
         HR_IMAGE: tf.FixedLenFeature((FLAGS.image_size, FLAGS.image_size, FLAGS.color_channels), tf.float32),
-        LR_IMAGE: tf.FixedLenFeature((FLAGS.image_size, FLAGS.image_size, FLAGS.color_channels), tf.float32),
+        LR_IMAGE: tf.FixedLenFeature((256, 256, FLAGS.color_channels), tf.float32),
         FILENAME: tf.FixedLenFeature([], tf.string)
     }
     parsed_features = tf.parse_single_example(proto, features)
