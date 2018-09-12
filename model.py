@@ -18,13 +18,12 @@ def model_fn(features, labels, mode, params):
     for d in devices:
         with tf.device(d):
             with tf.name_scope('inputs'):
-                lr_images = features
+                lr_images = features[0]
+                int1_images = features[1]
+                int2_images = features[2]
                 hr_images = labels
-                # Probability of keeping a node during dropout = 1.0 at test time (no dropout) and 0.75 at training time
-                pkeep_conv = tf.Variable(initial_value=params.pkeep_conv) if mode == Modes.TRAIN else tf.constant(params.pkeep_conv, dtype=tf.float32)
 
-            size = labels.get_shape().as_list()[1]
-            predictions = srcnn(lr_images, size, pkeep_conv, devices)
+            predictions = rcnn(lr_images, int1_images, int2_images, devices)
 
             if mode in (Modes.TRAIN, Modes.EVAL):
                 with tf.name_scope('losses'):
@@ -73,7 +72,11 @@ def model_fn(features, labels, mode, params):
     return estimator_spec
 
 
-def srcnn(lr_images, output_size, pkeep_conv=1.0, devices=['/device:CPU:0']):
+def conv(inputs, weights):
+    return tf.nn.conv2d(inputs, weights, strides=[1, 1, 1, 1], padding='SAME')
+
+
+def srcnn(lr_images, output_size, devices=['/device:CPU:0']):
     size = lr_images.get_shape().as_list()[1]
     ratio = int(output_size / size)
     output_channels = ratio*ratio if ratio > 1 else ratio
@@ -95,18 +98,71 @@ def srcnn(lr_images, output_size, pkeep_conv=1.0, devices=['/device:CPU:0']):
                 b4 = tf.Variable(tf.zeros(filters[3]), name='cnn_b4')
                 b5 = tf.Variable(tf.zeros(filters[4]), name='cnn_b5')
             with tf.name_scope('predictions'):
-                conv1 = tf.nn.bias_add(tf.nn.conv2d(lr_images, w1, strides=[1, 1, 1, 1], padding='SAME'), b1, name='conv_1')
+                conv1 = tf.nn.bias_add(conv(lr_images, w1), b1, name='conv_1')
                 conv1r = tf.nn.relu(conv1, name='relu_1')
-                conv2 = tf.nn.bias_add(tf.nn.conv2d(conv1r, w2, strides=[1, 1, 1, 1], padding='SAME'), b2, name='conv_2')
+                conv2 = tf.nn.bias_add(conv(conv1r, w2), b2, name='conv_2')
                 conv2r = tf.nn.relu(conv2, name='relu_2')
-                conv3 = tf.nn.bias_add(tf.nn.conv2d(conv2r, w3, strides=[1, 1, 1, 1], padding='SAME'), b3, name='conv_3')
+                conv3 = tf.nn.bias_add(conv(conv2r, w3), b3, name='conv_3')
                 conv3r = tf.nn.relu(conv3, name='relu_3')
-                conv4 = tf.nn.bias_add(tf.nn.conv2d(conv3r, w4, strides=[1, 1, 1, 1], padding='SAME'), b4, name='conv_4')
+                conv4 = tf.nn.bias_add(conv(conv3r, w4), b4, name='conv_4')
                 conv4r = tf.nn.relu(conv4, name='relu_4')
-                conv5 = tf.nn.bias_add(tf.nn.conv2d(conv4r, w5, strides=[1, 1, 1, 1], padding='SAME'), b5, name='conv_5')
+                conv5 = tf.nn.bias_add(conv(conv4r, w5), b5, name='conv_5')
                 upscaled = tf.tanh(phase_shift(conv5, ratio))
                 predictions = upscaled if ratio > 1 else conv5
     return predictions
+
+
+def rcnn(in_images, inter1, inter2, devices=['/device:CPU:0']):
+    channels = in_images.get_shape().as_list()[3]
+    fshape = [9, 1, 5]
+    fnums = [64, 32, 1]
+
+    # first hidden layer
+    w1 = tf.Variable(tf.random_normal([fshape[0], fshape[0], channels, fnums[0]], stddev=1e-3), name='cnn_w1')
+    wr1 = tf.Variable(tf.random_normal([1, 1, fnums[0], fnums[0]], stddev=1e-3), name='cnn_wr1')
+    wt1 = tf.Variable(tf.random_normal([fshape[0], fshape[0], channels, fnums[0]], stddev=1e-3), name='cnn_wt1')
+    b1 = tf.Variable(tf.zeros(fnums[0]), name='cnn_b1')
+
+    # second hidden layer
+    w2 = tf.Variable(tf.random_normal([fshape[1], fshape[1], fnums[0], fnums[1]], stddev=1e-3), name='cnn_w2')
+    wr2 = tf.Variable(tf.random_normal([1, 1, fnums[1], fnums[1]], stddev=1e-3), name='cnn_wr2')
+    wt2 = tf.Variable(tf.random_normal([fshape[1], fshape[1], fnums[0], fnums[1]], stddev=1e-3), name='cnn_wt2')
+    b2 = tf.Variable(tf.zeros(fnums[1]), name='cnn_b2')
+
+    # third hidden layer
+
+    w3 = tf.Variable(tf.random_normal([fshape[2], fshape[2], fnums[1], fnums[2]], stddev=1e-3), name='cnn_w3')
+    wr3 = tf.Variable(tf.random_normal([1, 1, fnums[2], fnums[2]], stddev=1e-3), name='cnn_wr3')
+    wt3 = tf.Variable(tf.random_normal([fshape[2], fshape[2], fnums[1], fnums[2]], stddev=1e-3), name='cnn_wt3')
+    b3 = tf.Variable(tf.zeros(fnums[2]), name='cnn_b3')
+
+    def hidden_layer(img1, img2, img3, w, wr, wt, b, number='1'):
+        h_x1 = tf.nn.bias_add(conv(img1, w), b, name='h_x1'+number)
+
+        r_x2 = tf.tanh(phase_shift(conv(h_x1, wr), 2))
+        t_x2 = tf.tanh(phase_shift(conv(img1, wt), 2))
+        x2 = tf.add(conv(img2, w), tf.add(r_x2, t_x2))
+        h_x2 = tf.nn.bias_add(x2, b, name='h_x2'+number)
+
+        r_x3 = tf.tanh(phase_shift(conv(h_x2, wr), 2))
+        t_x3 = tf.tanh(phase_shift(conv(img2, wt), 2))
+        x3 = tf.add(conv(img3, w), tf.add(r_x3, t_x3))
+        h_x3 = tf.nn.bias_add(x3, b, name='h_x3'+number)
+
+        return h_x1, h_x2, h_x3
+
+    for d in devices:
+        with tf.device(d):
+            h1, h2, h3 = hidden_layer(in_images, inter1, inter2, w1, wr1, wt1, b1)
+
+            h1, h2, h3 = hidden_layer(h1, h2, h3, w2, wr2, wt2, b2, '2')
+
+            h1, h2, h3 = hidden_layer(h1, h2, h3, w3, wr3, wt3, b3, '3')
+
+            hypothesis = tf.tanh(phase_shift(h3, 2))
+
+    return hypothesis
+
 
 
 def _tf_fspecial_gauss(size, sigma):

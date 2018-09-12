@@ -12,7 +12,8 @@ from tensorflow.contrib.learn.python.learn import learn_runner
 
 from config import FLAGS
 from model import model_fn, srcnn, tf_psnr, tf_ssim
-from utils import get_tfrecord_files, parse_function, save_config, save_image, save_output
+from tfrecord import parse_function
+from utils import get_tfrecord_files, save_config, save_image, save_output
 
 PREDICTION = 'prediction'
 
@@ -68,7 +69,8 @@ def input_fn(filenames, epoch, shuffle, batch_size):
         dataset = dataset.shuffle(buffer_size=10000)
     dataset = dataset.batch(batch_size)
     iterator = dataset.make_one_shot_iterator()
-    features, labels, names = iterator.get_next()
+    inputs, int1_inputs, int2_inputs, labels, names = iterator.get_next()
+    features = [inputs, int1_inputs, int2_inputs]
     return features, labels
 
 
