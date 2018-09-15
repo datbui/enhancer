@@ -11,7 +11,7 @@ import yaml
 from tensorflow.contrib.learn.python.learn import learn_runner
 
 from config import FLAGS
-from model import model_fn, srcnn, tf_psnr, tf_ssim
+from model import model_fn, rcnn, tf_psnr, tf_ssim
 from tfrecord import parse_function
 from utils import get_tfrecord_files, save_config, save_image, save_output
 
@@ -156,14 +156,14 @@ def run_testing(session, config=FLAGS):
     iterator = dataset.make_one_shot_iterator()
     tf_next_element = iterator.get_next()
 
-    (tf_lr_image, tf_hr_image_tensor, _) = tf_next_element
+    tf_lr_image, tf_int1_image, tf_int2_image, tf_hr_image_tensor, tf_name = tf_next_element
     tf_re_image = tf.image.resize_images(tf_lr_image, [FLAGS.image_size, FLAGS.image_size])
     tf_initial_mse = tf.losses.mean_squared_error(tf_hr_image_tensor, tf_re_image)
     tf_initial_rmse = tf.sqrt(tf_initial_mse)
     tf_initial_psnr = tf_psnr(tf_initial_mse)
     tf_initial_ssim = tf_ssim(tf_hr_image_tensor, tf_re_image)
 
-    tf_prediction = srcnn(tf_lr_image, FLAGS.image_size)
+    tf_prediction = rcnn(tf_lr_image, tf_int1_image, tf_int2_image)
     tf.initialize_all_variables().run()
 
     predicted_mse = tf.losses.mean_squared_error(tf_hr_image_tensor, tf_prediction)
@@ -207,7 +207,7 @@ def main(_):
     setup_logging()
 
     # start the session
-    with tf.Session(config=tf.ConfigProto(log_device_placement=True)) as sess:
+    with tf.Session(config=tf.ConfigProto(allow_soft_placement=True, log_device_placement=True)) as sess:
         if FLAGS.is_train:
             if not os.path.exists(FLAGS.checkpoint_dir):
                 os.makedirs(FLAGS.checkpoint_dir)
