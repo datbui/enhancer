@@ -115,7 +115,7 @@ def srcnn(lr_images, output_size, devices=['/device:CPU:0']):
 def rcnn(in_images, inter1, inter2, devices=['/device:CPU:0']):
     channels = in_images.get_shape().as_list()[3]
     fshape = [9, 1, 5]
-    fnums = [64, 32, 1]
+    fnums = [64, 16, 4]
 
     # first hidden layer
     w1 = tf.Variable(tf.random_normal([fshape[0], fshape[0], channels, fnums[0]], stddev=1e-3), name='cnn_w1')
@@ -137,27 +137,27 @@ def rcnn(in_images, inter1, inter2, devices=['/device:CPU:0']):
     b3 = tf.Variable(tf.zeros(fnums[2]), name='cnn_b3')
 
     def hidden_layer(img1, img2, img3, w, wr, wt, b, number='1'):
-        h_x1 = tf.nn.bias_add(conv(img1, w), b, name='h_x1'+number)
+        h_x1 = tf.nn.bias_add(conv(img1, w), b, name='h_x1_'+number)
 
-        r_x2 = tf.tanh(phase_shift(conv(h_x1, wr), 2))
-        t_x2 = tf.tanh(phase_shift(conv(img1, wt), 2))
+        r_x2 = tf.image.resize_bicubic(conv(h_x1, wr), [512, 512])
+        t_x2 = tf.image.resize_bicubic(conv(img1, wt), [512, 512])
         x2 = tf.add(conv(img2, w), tf.add(r_x2, t_x2))
-        h_x2 = tf.nn.bias_add(x2, b, name='h_x2'+number)
+        h_x2 = tf.nn.bias_add(x2, b, name='h_x2_'+number)
 
-        r_x3 = tf.tanh(phase_shift(conv(h_x2, wr), 2))
-        t_x3 = tf.tanh(phase_shift(conv(img2, wt), 2))
+        r_x3 = tf.image.resize_bicubic(conv(h_x2, wr), [1024, 1024])
+        t_x3 = tf.image.resize_bicubic(conv(img2, wt), [1024, 1024])
         x3 = tf.add(conv(img3, w), tf.add(r_x3, t_x3))
-        h_x3 = tf.nn.bias_add(x3, b, name='h_x3'+number)
+        h_x3 = tf.nn.bias_add(x3, b, name='h_x3_'+number)
 
         return h_x1, h_x2, h_x3
 
     for d in devices:
         with tf.device(d):
-            h1, h2, h3 = hidden_layer(in_images, inter1, inter2, w1, wr1, wt1, b1)
+            l1_h1, l1_h2, l1_h3 = hidden_layer(in_images, inter1, inter2, w1, wr1, wt1, b1)
 
-            h1, h2, h3 = hidden_layer(h1, h2, h3, w2, wr2, wt2, b2, '2')
+            l2_h1, l2_h2, l2_h3 = hidden_layer(l1_h1, l1_h2, l1_h3, w2, wr2, wt2, b2, '2')
 
-            h1, h2, h3 = hidden_layer(h1, h2, h3, w3, wr3, wt3, b3, '3')
+            h1, h2, h3 = hidden_layer(l2_h1, l2_h2, l2_h3, w3, wr3, wt3, b3, '3')
 
             hypothesis = tf.tanh(phase_shift(h3, 2))
 
