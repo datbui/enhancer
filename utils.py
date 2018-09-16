@@ -37,9 +37,8 @@ def get_tfrecord_files(config):
     return load_files(os.path.join(config.tfrecord_dir, config.dataset, config.subset), TFRECORD)
 
 
-def get_image(image_path, image_size, colored=False):
+def get_image(image_path, colored=False):
     image = read_image(image_path, colored)
-    image = do_resize(image, [image_size, image_size])
     return _pre_process(image)
 
 
@@ -108,14 +107,23 @@ def split_tif(input, output, size=256):
         filename = os.path.basename(tif).split('.')[0]
         print(filename)
         try:
+            img.seek(0)
+            r = np.array(img)
             img.seek(1)
-            img = img.resize([size, size])
-            img.save(os.path.join(output, '%s.png' % filename))
+            g = np.array(img)
+            img.seek(2)
+            b = np.array(img)
+            output_image = Image.fromarray(np.stack([r, g, b], axis=-1))
+            output_image = output_image.resize([size, size])
+            output_image.save(os.path.join(output, '%s.png' % filename))
         except EOFError as e:
             print(e)
             break
 
 if __name__ == '__main__':
     print("start")
+    split_tif('/Users/dat/Downloads/2b_low', '/Users/dat/Projects/results/images_cleaned/2b/lowres', 256)
+    split_tif('/Users/dat/Downloads/2b_low', '/Users/dat/Projects/results/images_cleaned/2b/int1res', 512)
     split_tif('/Users/dat/Downloads/2b_mid', '/Users/dat/Projects/results/images_cleaned/2b/int2res', 1024)
+    split_tif('/Users/dat/Downloads/2b_high', '/Users/dat/Projects/results/images_cleaned/2b/highres', 2048)
     print("finish")
