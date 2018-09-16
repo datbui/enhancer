@@ -3,7 +3,7 @@ import os
 import tensorflow as tf
 
 from config import FLAGS
-from utils import DEPTH, FILENAME, HEIGHT, HR_IMAGE, LR_IMAGE, TFRECORD, WIDTH, get_tfrecord_files, load_files, save_config, INT2_IMAGE, INT1_IMAGE, read_image
+from utils import DEPTH, FILENAME, HEIGHT, HR_IMAGE, LR_IMAGE, TFRECORD, WIDTH, get_tfrecord_files, load_files, save_config, INT2_IMAGE, INT1_IMAGE, get_image
 
 
 def _bytes_feature(value):
@@ -61,10 +61,10 @@ def create_tfrecords(config=FLAGS):
         int1res_filename = os.path.join(config.data_dir, config.dataset, config.subset, 'int1res', '%s.%s' % (name, config.extension))
         int2res_filename = os.path.join(config.data_dir, config.dataset, config.subset, 'int2res', '%s.%s' % (name, config.extension))
 
-        lr_image = read_image(lowres_filename, config.color_channels == 3)
-        int1_image = read_image(int1res_filename, config.color_channels == 3)
-        int2_image = read_image(int2res_filename, config.color_channels == 3)
-        hr_image = read_image(file, config.color_channels == 3)
+        lr_image = get_image(lowres_filename, config.color_channels == 3)
+        int1_image = get_image(int1res_filename, config.color_channels == 3)
+        int2_image = get_image(int2res_filename, config.color_channels == 3)
+        hr_image = get_image(file, config.color_channels == 3)
 
         # Create a feature and record
         feature = {

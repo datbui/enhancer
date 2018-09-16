@@ -64,10 +64,12 @@ def get_estimator(run_config=None, params=None):
 def input_fn(filenames, epoch, shuffle, batch_size):
     dataset = tf.data.TFRecordDataset(filenames)
     dataset = dataset.map(parse_function)
-    dataset = dataset.repeat(epoch)
     if shuffle:
-        dataset = dataset.shuffle(buffer_size=10000)
+        dataset = dataset.shuffle(batch_size*10, reshuffle_each_iteration=True)
+    dataset = dataset.repeat(epoch)
     dataset = dataset.batch(batch_size)
+    prefetch_batch_size = int(len(filenames) / batch_size)
+    dataset = dataset.prefetch(prefetch_batch_size)
     iterator = dataset.make_one_shot_iterator()
     inputs, int1_inputs, int2_inputs, labels, names = iterator.get_next()
     features = [inputs, int1_inputs, int2_inputs]
