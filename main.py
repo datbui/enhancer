@@ -159,7 +159,7 @@ def run_testing(session, config=FLAGS):
     tf_next_element = iterator.get_next()
 
     tf_lr_image, tf_int1_image, tf_int2_image, tf_hr_image_tensor, tf_name = tf_next_element
-    tf_re_image = tf.image.resize_images(tf_lr_image, [FLAGS.image_size, FLAGS.image_size])
+    tf_re_image = tf.image.resize_images(tf_lr_image, [2048, 2048])
     tf_initial_mse = tf.losses.mean_squared_error(tf_hr_image_tensor, tf_re_image)
     tf_initial_rmse = tf.sqrt(tf_initial_mse)
     tf_initial_psnr = tf_psnr(tf_initial_mse)
@@ -184,7 +184,7 @@ def run_testing(session, config=FLAGS):
             tf_initial_params = [tf_initial_rmse, tf_initial_psnr, tf_initial_ssim]
             tf_predicted_params = [predicted_rmse, predicted_psnr, predicted_ssim]
             next_element, re_image, prediction, initial_params, predicted_params = session.run([tf_next_element, tf_re_image, tf_prediction, tf_initial_params, tf_predicted_params])
-            (lr_image, hr_image, name) = next_element
+            (lr_image, _, _, hr_image, name) = next_element
             (initial_rmse, initial_psnr, initial_ssim) = initial_params
             (rmse, psnr, ssim) = predicted_params
             prediction = np.squeeze(prediction)
