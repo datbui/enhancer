@@ -114,17 +114,17 @@ def srcnn(lr_images, output_size, devices=['/device:CPU:0']):
 
 def rcnn(in_images, inter1, inter2, devices=['/device:CPU:0']):
     def hidden_layer(img1, img2, img3, w, wr, wt, b, number='1'):
-        h_x1 = tf.nn.bias_add(conv(img1, w), b, name='h_x1_'+number)
+        h_x1 = tf.nn.relu(tf.nn.bias_add(conv(img1, w), b, name='h_x1_'+number))
 
         r_x2 = tf.image.resize_bicubic(conv(h_x1, wr), [512, 512])
         t_x2 = tf.image.resize_bicubic(conv(img1, wt), [512, 512])
         x2 = tf.add(conv(img2, w), tf.add(r_x2, t_x2))
-        h_x2 = tf.nn.bias_add(x2, b, name='h_x2_'+number)
+        h_x2 = tf.nn.relu(tf.nn.bias_add(x2, b, name='h_x2_'+number))
 
         r_x3 = tf.image.resize_bicubic(conv(h_x2, wr), [1024, 1024])
         t_x3 = tf.image.resize_bicubic(conv(img2, wt), [1024, 1024])
         x3 = tf.add(conv(img3, w), tf.add(r_x3, t_x3))
-        h_x3 = tf.nn.bias_add(x3, b, name='h_x3_'+number)
+        h_x3 = tf.nn.relu(tf.nn.bias_add(x3, b, name='h_x3_'+number))
 
         return h_x1, h_x2, h_x3
 
