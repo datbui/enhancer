@@ -129,7 +129,7 @@ def rcnn(in_images, inter1, inter2, devices=['/device:CPU:0']):
         return h_x1, h_x2, h_x3
 
     channels = in_images.get_shape().as_list()[3]
-    fshape = [9, 1, 5]
+    fshape = [3, 1, 2]
     fnums = [32, 16, 4]
 
     with tf.name_scope('first_layer'):

@@ -61,10 +61,14 @@ def create_tfrecords(config=FLAGS):
         int1res_filename = os.path.join(config.data_dir, config.dataset, config.subset, 'int1res', '%s.%s' % (name, config.extension))
         int2res_filename = os.path.join(config.data_dir, config.dataset, config.subset, 'int2res', '%s.%s' % (name, config.extension))
 
-        lr_image = get_image(lowres_filename, config.color_channels == 3)
-        int1_image = get_image(int1res_filename, config.color_channels == 3)
-        int2_image = get_image(int2res_filename, config.color_channels == 3)
-        hr_image = get_image(file, config.color_channels == 3)
+        try:
+            lr_image = get_image(lowres_filename, config.color_channels == 3)
+            int1_image = get_image(int1res_filename, config.color_channels == 3)
+            int2_image = get_image(int2res_filename, config.color_channels == 3)
+            hr_image = get_image(file, config.color_channels == 3)
+        except FileNotFoundError as e:
+            tf.logging.error('Not found %s' % lowres_filename)
+            continue
 
         # Create a feature and record
         feature = {
