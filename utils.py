@@ -3,7 +3,7 @@ from glob import glob
 
 import numpy as np
 import scipy.misc
-
+import tensorflow as tf
 from PIL import Image
 
 CONFIG_TXT = 'config.txt'
@@ -100,6 +100,10 @@ def _post_process(images):
     return post_processed.squeeze()
 
 
+def tf_slice(tf_lr_image, dimension):
+    return tf.expand_dims(tf_lr_image[:, :, :, dimension], -1)
+
+
 def split_tif(input, output, size=256):
     tifs = load_files(input, 'tif')
     for tif in tifs:
@@ -119,6 +123,7 @@ def split_tif(input, output, size=256):
         except EOFError as e:
             print(e)
             break
+
 
 if __name__ == '__main__':
     print("start")

@@ -22,7 +22,6 @@ def parse_function(proto):
     features = {
         HEIGHT: tf.FixedLenFeature([], tf.int64),
         WIDTH: tf.FixedLenFeature([], tf.int64),
-        DEPTH: tf.FixedLenFeature([], tf.int64),
         HR_IMAGE: tf.FixedLenFeature([], tf.string),
         INT2_IMAGE: tf.FixedLenFeature([], tf.string),
         INT1_IMAGE: tf.FixedLenFeature([], tf.string),
@@ -73,7 +72,6 @@ def create_tfrecords(config=FLAGS):
         feature = {
             HEIGHT: _int64_feature(config.image_size),
             WIDTH: _int64_feature(config.image_size),
-            DEPTH: _int64_feature(config.color_channels),
             LR_IMAGE: _bytes_feature(tf.compat.as_bytes(lr_image.tostring())),
             INT1_IMAGE: _bytes_feature(tf.compat.as_bytes(int1_image.tostring())),
             INT2_IMAGE: _bytes_feature(tf.compat.as_bytes(int2_image.tostring())),

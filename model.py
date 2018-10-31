@@ -1,11 +1,10 @@
-from math import ceil
-
 import numpy as np
 import tensorflow as tf
 from tensorflow.python.estimator.model_fn import ModeKeys as Modes
 
 from config import FLAGS
 from subpixel import phase_shift
+from utils import tf_slice
 
 LOG_EVERY_STEPS = 10
 
@@ -18,10 +17,10 @@ def model_fn(features, labels, mode, params):
     for d in devices:
         with tf.device(d):
             with tf.name_scope('inputs'):
-                lr_images = features[0]
-                int1_images = features[1]
-                int2_images = features[2]
-                hr_images = labels
+                lr_images = tf_slice(features[0], 0)
+                int1_images = tf_slice(features[1], 0)
+                int2_images = tf_slice(features[2], 0)
+                hr_images = tf_slice(labels, 0)
 
             predictions = rcnn(lr_images, int1_images, int2_images, devices)
 
@@ -76,36 +75,36 @@ def conv(inputs, weights):
     return tf.nn.conv2d(inputs, weights, strides=[1, 1, 1, 1], padding='SAME')
 
 
-def srcnn(lr_images, output_size, devices=['/device:CPU:0']):
+def cnn(lr_images, output_size, devices=['/device:CPU:0']):
     size = lr_images.get_shape().as_list()[1]
     ratio = int(output_size / size)
-    output_channels = ratio*ratio if ratio > 1 else ratio
+    output_channels = ratio * ratio if ratio > 1 else ratio
     filters_shape = [2, 1, 3, 2, 1]
     filters = [64, 32, 16, 8, output_channels]
     channels = lr_images.get_shape().as_list()[3]
     for d in devices:
         with tf.device(d):
             with tf.name_scope('weights'):
-                w1 = tf.Variable(tf.random_normal([filters_shape[0], filters_shape[0], channels, filters[0]], stddev=1e-3), name='cnn_w1')
-                w2 = tf.Variable(tf.random_normal([filters_shape[1], filters_shape[1], filters[0], filters[1]], stddev=1e-3), name='cnn_w2')
-                w3 = tf.Variable(tf.random_normal([filters_shape[2], filters_shape[2], filters[1], filters[2]], stddev=1e-3), name='cnn_w3')
-                w4 = tf.Variable(tf.random_normal([filters_shape[3], filters_shape[3], filters[2], filters[3]], stddev=1e-3), name='cnn_w4')
-                w5 = tf.Variable(tf.random_normal([filters_shape[4], filters_shape[4], filters[3], filters[4]], stddev=1e-3), name='cnn_w5')
+                w1 = tf.get_variable(initializer=tf.random_normal([filters_shape[0], filters_shape[0], channels, filters[0]], stddev=1e-3), name='cnn_w1')
+                w2 = tf.get_variable(initializer=tf.random_normal([filters_shape[1], filters_shape[1], filters[0], filters[1]], stddev=1e-3), name='cnn_w2')
+                w3 = tf.get_variable(initializer=tf.random_normal([filters_shape[2], filters_shape[2], filters[1], filters[2]], stddev=1e-3), name='cnn_w3')
+                w4 = tf.get_variable(initializer=tf.random_normal([filters_shape[3], filters_shape[3], filters[2], filters[3]], stddev=1e-3), name='cnn_w4')
+                w5 = tf.get_variable(initializer=tf.random_normal([filters_shape[4], filters_shape[4], filters[3], filters[4]], stddev=1e-3), name='cnn_w5')
             with tf.name_scope('biases'):
-                b1 = tf.Variable(tf.zeros(filters[0]), name='cnn_b1')
-                b2 = tf.Variable(tf.zeros(filters[1]), name='cnn_b2')
-                b3 = tf.Variable(tf.zeros(filters[2]), name='cnn_b3')
-                b4 = tf.Variable(tf.zeros(filters[3]), name='cnn_b4')
-                b5 = tf.Variable(tf.zeros(filters[4]), name='cnn_b5')
+                b1 = tf.get_variable(initializer=tf.zeros(filters[0]), name='cnn_b1')
+                b2 = tf.get_variable(initializer=tf.zeros(filters[1]), name='cnn_b2')
+                b3 = tf.get_variable(initializer=tf.zeros(filters[2]), name='cnn_b3')
+                b4 = tf.get_variable(initializer=tf.zeros(filters[3]), name='cnn_b4')
+                b5 = tf.get_variable(initializer=tf.zeros(filters[4]), name='cnn_b5')
             with tf.name_scope('predictions'):
                 conv1 = tf.nn.bias_add(conv(lr_images, w1), b1, name='conv_1')
-                conv1r = tf.nn.relu(conv1, name='relu_1')
+                conv1r = tf.nn.leaky_relu(conv1, name='relu_1')
                 conv2 = tf.nn.bias_add(conv(conv1r, w2), b2, name='conv_2')
-                conv2r = tf.nn.relu(conv2, name='relu_2')
+                conv2r = tf.nn.leaky_relu(conv2, name='relu_2')
                 conv3 = tf.nn.bias_add(conv(conv2r, w3), b3, name='conv_3')
-                conv3r = tf.nn.relu(conv3, name='relu_3')
+                conv3r = tf.nn.leaky_relu(conv3, name='relu_3')
                 conv4 = tf.nn.bias_add(conv(conv3r, w4), b4, name='conv_4')
-                conv4r = tf.nn.relu(conv4, name='relu_4')
+                conv4r = tf.nn.leaky_relu(conv4, name='relu_4')
                 conv5 = tf.nn.bias_add(conv(conv4r, w5), b5, name='conv_5')
                 upscaled = tf.tanh(phase_shift(conv5, ratio))
                 predictions = upscaled if ratio > 1 else conv5
@@ -114,17 +113,17 @@ def srcnn(lr_images, output_size, devices=['/device:CPU:0']):
 
 def rcnn(in_images, inter1, inter2, devices=['/device:CPU:0']):
     def hidden_layer(img1, img2, img3, w, wr, wt, b, number='1'):
-        h_x1 = tf.nn.relu(tf.nn.bias_add(conv(img1, w), b, name='h_x1_'+number))
+        h_x1 = tf.nn.leaky_relu(tf.nn.bias_add(conv(img1, w), b, name='h_x1_' + number))
 
         r_x2 = tf.image.resize_bicubic(conv(h_x1, wr), [512, 512])
         t_x2 = tf.image.resize_bicubic(conv(img1, wt), [512, 512])
         x2 = tf.add(conv(img2, w), tf.add(r_x2, t_x2))
-        h_x2 = tf.nn.relu(tf.nn.bias_add(x2, b, name='h_x2_'+number))
+        h_x2 = tf.nn.leaky_relu(tf.nn.bias_add(x2, b, name='h_x2_' + number))
 
         r_x3 = tf.image.resize_bicubic(conv(h_x2, wr), [1024, 1024])
         t_x3 = tf.image.resize_bicubic(conv(img2, wt), [1024, 1024])
         x3 = tf.add(conv(img3, w), tf.add(r_x3, t_x3))
-        h_x3 = tf.nn.relu(tf.nn.bias_add(x3, b, name='h_x3_'+number))
+        h_x3 = tf.nn.leaky_relu(tf.nn.bias_add(x3, b, name='h_x3_' + number))
 
         return h_x1, h_x2, h_x3
 
@@ -132,26 +131,26 @@ def rcnn(in_images, inter1, inter2, devices=['/device:CPU:0']):
     fshape = [3, 1, 2]
     fnums = [32, 16, 4]
 
-    with tf.name_scope('first_layer'):
+    with tf.variable_scope('first_layer', reuse=tf.AUTO_REUSE):
         # first hidden layer
-        w1 = tf.Variable(tf.random_normal([fshape[0], fshape[0], channels, fnums[0]], stddev=1e-3), name='cnn_w1')
-        wr1 = tf.Variable(tf.random_normal([1, 1, fnums[0], fnums[0]], stddev=1e-3), name='cnn_wr1')
-        wt1 = tf.Variable(tf.random_normal([fshape[0], fshape[0], channels, fnums[0]], stddev=1e-3), name='cnn_wt1')
-        b1 = tf.Variable(tf.zeros(fnums[0]), name='cnn_b1')
+        w1 = tf.get_variable(initializer=tf.random_normal([fshape[0], fshape[0], channels, fnums[0]], stddev=1e-3), name='cnn_w1')
+        wr1 = tf.get_variable(initializer=tf.random_normal([1, 1, fnums[0], fnums[0]], stddev=1e-3), name='cnn_wr1')
+        wt1 = tf.get_variable(initializer=tf.random_normal([fshape[0], fshape[0], channels, fnums[0]], stddev=1e-3), name='cnn_wt1')
+        b1 = tf.get_variable(initializer=tf.zeros(fnums[0]), name='cnn_b1')
 
-    with tf.name_scope('second_layer'):
+    with tf.variable_scope('second_layer', reuse=tf.AUTO_REUSE):
         # second hidden layer
-        w2 = tf.Variable(tf.random_normal([fshape[1], fshape[1], fnums[0], fnums[1]], stddev=1e-3), name='cnn_w2')
-        wr2 = tf.Variable(tf.random_normal([1, 1, fnums[1], fnums[1]], stddev=1e-3), name='cnn_wr2')
-        wt2 = tf.Variable(tf.random_normal([fshape[1], fshape[1], fnums[0], fnums[1]], stddev=1e-3), name='cnn_wt2')
-        b2 = tf.Variable(tf.zeros(fnums[1]), name='cnn_b2')
+        w2 = tf.get_variable(initializer=tf.random_normal([fshape[1], fshape[1], fnums[0], fnums[1]], stddev=1e-3), name='cnn_w2')
+        wr2 = tf.get_variable(initializer=tf.random_normal([1, 1, fnums[1], fnums[1]], stddev=1e-3), name='cnn_wr2')
+        wt2 = tf.get_variable(initializer=tf.random_normal([fshape[1], fshape[1], fnums[0], fnums[1]], stddev=1e-3), name='cnn_wt2')
+        b2 = tf.get_variable(initializer=tf.zeros(fnums[1]), name='cnn_b2')
 
-    with tf.name_scope('third_layer'):
+    with tf.variable_scope('third_layer', reuse=tf.AUTO_REUSE):
         # third hidden layer
-        w3 = tf.Variable(tf.random_normal([fshape[2], fshape[2], fnums[1], fnums[2]], stddev=1e-3), name='cnn_w3')
-        wr3 = tf.Variable(tf.random_normal([1, 1, fnums[2], fnums[2]], stddev=1e-3), name='cnn_wr3')
-        wt3 = tf.Variable(tf.random_normal([fshape[2], fshape[2], fnums[1], fnums[2]], stddev=1e-3), name='cnn_wt3')
-        b3 = tf.Variable(tf.zeros(fnums[2]), name='cnn_b3')
+        w3 = tf.get_variable(initializer=tf.random_normal([fshape[2], fshape[2], fnums[1], fnums[2]], stddev=1e-3), name='cnn_w3')
+        wr3 = tf.get_variable(initializer=tf.random_normal([1, 1, fnums[2], fnums[2]], stddev=1e-3), name='cnn_wr3')
+        wt3 = tf.get_variable(initializer=tf.random_normal([fshape[2], fshape[2], fnums[1], fnums[2]], stddev=1e-3), name='cnn_wt3')
+        b3 = tf.get_variable(initializer=tf.zeros(fnums[2]), name='cnn_b3')
 
     for d in devices:
         with tf.device(d):
@@ -164,7 +163,6 @@ def rcnn(in_images, inter1, inter2, devices=['/device:CPU:0']):
             hypothesis = tf.tanh(phase_shift(h3, 2))
 
     return hypothesis
-
 
 
 def _tf_fspecial_gauss(size, sigma):
@@ -188,6 +186,7 @@ def _tf_fspecial_gauss(size, sigma):
     return g / tf.reduce_sum(g)
 
 
+@DeprecationWarning
 def tf_ssim(img1, img2, cs_map=False, mean_metric=True, size=11, sigma=1.5):
     """
     Compute structural similarity index metric.
@@ -228,6 +227,7 @@ def tf_ssim(img1, img2, cs_map=False, mean_metric=True, size=11, sigma=1.5):
     return value
 
 
+@DeprecationWarning
 def tf_ms_ssim(img1, img2, mean_metric=True, level=5):
     """
     Compute multi-scale structural similarity index metric.
@@ -263,6 +263,7 @@ def tf_ms_ssim(img1, img2, mean_metric=True, level=5):
     return value
 
 
+@DeprecationWarning
 def tf_psnr(mse):
     """
     PSNR is Peek Signal to Noise Ratio, which is similar to mean squared error.
@@ -279,6 +280,7 @@ def tf_psnr(mse):
     return -10. * tf.log(mse) / tf.log(10.)
 
 
+@DeprecationWarning
 def tf_histogram_loss(img1, img2):
     """
     Calculate histogram loss between two images.
