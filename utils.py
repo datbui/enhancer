@@ -37,13 +37,13 @@ def get_tfrecord_files(config):
     return load_files(os.path.join(config.tfrecord_dir, config.dataset, config.subset), TFRECORD)
 
 
-def get_image(image_path, colored=False):
+def get_image(image_path, colored=True):
     image = read_image(image_path, colored)
     return _pre_process(image)
 
 
-def read_image(image_path, colored=False):
-    image = scipy.misc.imread(image_path, flatten=(not colored), mode='YCbCr').astype(np.float32)
+def read_image(image_path, colored=True):
+    image = scipy.misc.imread(image_path, flatten=(not colored), mode='RGB').astype(np.float32)
     return image
 
 

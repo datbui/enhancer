@@ -31,11 +31,10 @@ def parse_function(proto):
     }
     parsed_features = tf.parse_single_example(proto, features)
 
-    lr_images = tf.reshape(tf.decode_raw(parsed_features[LR_IMAGE], tf.float32), tf.stack([256, 256, 1]))
-    # lr_images = tf.expand_dims(lr_images, 0)
-    int1_images = tf.reshape(tf.decode_raw(parsed_features[INT1_IMAGE], tf.float32), tf.stack([512, 512, 1]))
-    int2_images = tf.reshape(tf.decode_raw(parsed_features[INT2_IMAGE], tf.float32), tf.stack([1024, 1024, 1]))
-    hr_images = tf.reshape(tf.decode_raw(parsed_features[HR_IMAGE], tf.float32), tf.stack([2048, 2048, 1]))
+    lr_images = tf.reshape(tf.decode_raw(parsed_features[LR_IMAGE], tf.float32), tf.stack([256, 256, 3]))
+    int1_images = tf.reshape(tf.decode_raw(parsed_features[INT1_IMAGE], tf.float32), tf.stack([512, 512, 3]))
+    int2_images = tf.reshape(tf.decode_raw(parsed_features[INT2_IMAGE], tf.float32), tf.stack([1024, 1024, 3]))
+    hr_images = tf.reshape(tf.decode_raw(parsed_features[HR_IMAGE], tf.float32), tf.stack([2048, 2048, 3]))
     names = parsed_features[FILENAME]
 
     # features = tf.stack([lr_images, int1_images, int2_images])
@@ -62,12 +61,12 @@ def create_tfrecords(config=FLAGS):
         int2res_filename = os.path.join(config.data_dir, config.dataset, config.subset, 'int2res', '%s.%s' % (name, config.extension))
 
         try:
-            lr_image = get_image(lowres_filename, config.color_channels == 3)
-            int1_image = get_image(int1res_filename, config.color_channels == 3)
-            int2_image = get_image(int2res_filename, config.color_channels == 3)
-            hr_image = get_image(file, config.color_channels == 3)
+            lr_image = get_image(lowres_filename)
+            int1_image = get_image(int1res_filename)
+            int2_image = get_image(int2res_filename)
+            hr_image = get_image(file)
         except FileNotFoundError as e:
-            tf.logging.error('Not found %s' % lowres_filename)
+            tf.logging.error(e)
             continue
 
         # Create a feature and record
@@ -97,7 +96,7 @@ def test_tfrecords(config=FLAGS):
 
     dataset = tf.data.TFRecordDataset(filenames)
     dataset = dataset.map(parse_function)
-    dataset = dataset.shuffle(10000)
+    dataset = dataset.shuffle(50)
     dataset = dataset.batch(10)
     dataset = dataset.repeat(100)
 
