@@ -9,10 +9,11 @@ import numpy as np
 import tensorflow as tf
 import yaml
 from tensorflow.contrib.learn.python.learn import learn_runner
+from tfrecord import parse_function
 
 from config import FLAGS
-from model import model_fn, srcnn, tf_psnr, tf_ssim
-from utils import get_tfrecord_files, parse_function, save_config, save_image, save_output
+from model import cnn, model_fn, tf_psnr, tf_ssim
+from utils import get_tfrecord_files, save_config, save_image, save_output
 
 PREDICTION = 'prediction'
 
@@ -63,10 +64,12 @@ def get_estimator(run_config=None, params=None):
 def input_fn(filenames, epoch, shuffle, batch_size):
     dataset = tf.data.TFRecordDataset(filenames)
     dataset = dataset.map(parse_function)
-    dataset = dataset.repeat(epoch)
     if shuffle:
-        dataset = dataset.shuffle(buffer_size=10000)
+        dataset = dataset.shuffle(batch_size * 10, reshuffle_each_iteration=True)
+    dataset = dataset.repeat(epoch)
     dataset = dataset.batch(batch_size)
+    prefetch_batch_size = int(len(filenames) / batch_size)
+    dataset = dataset.prefetch(prefetch_batch_size)
     iterator = dataset.make_one_shot_iterator()
     features, labels, names = iterator.get_next()
     return features, labels
@@ -117,7 +120,7 @@ def run_training(session, config=FLAGS):
         device=config.device,
         epoch=config.epoch,
         batch_size=config.batch_size,
-        min_eval_frequency=500,
+        min_eval_frequency=100,
         train_steps=None,  # Use train feeder until its empty
         eval_steps=1,  # Use 1 step of evaluation feeder
         train_files=train_files
@@ -161,7 +164,7 @@ def run_testing(session, config=FLAGS):
     tf_initial_psnr = tf_psnr(tf_initial_mse)
     tf_initial_ssim = tf_ssim(tf_hr_image_tensor, tf_re_image)
 
-    tf_prediction = srcnn(tf_lr_image, FLAGS.image_size)
+    tf_prediction = cnn(tf_lr_image, FLAGS.image_size)
     tf.initialize_all_variables().run()
 
     predicted_mse = tf.losses.mean_squared_error(tf_hr_image_tensor, tf_prediction)
@@ -205,7 +208,7 @@ def main(_):
     setup_logging()
 
     # start the session
-    with tf.Session(config=tf.ConfigProto(log_device_placement=True)) as sess:
+    with tf.Session(config=tf.ConfigProto(allow_soft_placement=True, log_device_placement=True)) as sess:
         if FLAGS.is_train:
             if not os.path.exists(FLAGS.checkpoint_dir):
                 os.makedirs(FLAGS.checkpoint_dir)

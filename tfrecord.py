@@ -3,7 +3,7 @@ import os
 import tensorflow as tf
 
 from config import FLAGS
-from utils import DEPTH, FILENAME, HEIGHT, HR_IMAGE, LR_IMAGE, TFRECORD, WIDTH, get_image, get_tfrecord_files, load_files, parse_function, save_config
+from utils import FILENAME, HEIGHT, HR_IMAGE, LR_IMAGE, TFRECORD, WIDTH, get_image, get_tfrecord_files, load_files, save_config
 
 
 def _bytes_feature(value):
@@ -16,6 +16,23 @@ def _int64_feature(value):
 
 def _float_feature(value):
     return tf.train.Feature(float_list=tf.train.FloatList(value=value.flatten()))
+
+
+def parse_function(proto):
+    features = {
+        HEIGHT: tf.FixedLenFeature([], tf.int64),
+        WIDTH: tf.FixedLenFeature([], tf.int64),
+        HR_IMAGE: tf.FixedLenFeature([], tf.string),
+        LR_IMAGE: tf.FixedLenFeature([], tf.string),
+        FILENAME: tf.FixedLenFeature([], tf.string)
+    }
+    parsed_features = tf.parse_single_example(proto, features)
+
+    lr_images = tf.reshape(tf.decode_raw(parsed_features[LR_IMAGE], tf.float32), tf.stack([256, 256, 3]))
+    hr_images = tf.reshape(tf.decode_raw(parsed_features[HR_IMAGE], tf.float32), tf.stack([FLAGS.image_size, FLAGS.image_size, 3]))
+    names = parsed_features[FILENAME]
+
+    return lr_images, hr_images, names
 
 
 def create_tfrecords(config=FLAGS):
@@ -32,17 +49,20 @@ def create_tfrecords(config=FLAGS):
         print(file)
         name = ntpath.basename(file).split('.')[0]
         lowres_filename = os.path.join(config.data_dir, config.dataset, config.subset, 'Lowres', '%s.%s' % (name, config.extension))
-        hr_image = get_image(file, config.image_size, config.color_channels == 3)
-        lr_image = get_image(lowres_filename, 256, config.color_channels == 3)
+        try:
+            hr_image = get_image(file, config.image_size)
+            lr_image = get_image(lowres_filename, 256)
+        except FileNotFoundError as e:
+            tf.logging.error(e)
+            continue
 
         # Create a feature and record
         feature = {
             HEIGHT: _int64_feature(config.image_size),
             WIDTH: _int64_feature(config.image_size),
-            DEPTH: _int64_feature(config.color_channels),
-            LR_IMAGE: _float_feature(lr_image),
-            HR_IMAGE: _float_feature(hr_image),
-            FILENAME: _bytes_feature(bytes(name, 'utf-8'))
+            LR_IMAGE: _bytes_feature(tf.compat.as_bytes(lr_image.tostring())),
+            HR_IMAGE: _bytes_feature(tf.compat.as_bytes(hr_image.tostring())),
+            FILENAME: _bytes_feature(tf.compat.as_bytes(name))
         }
         record = tf.train.Example(features=tf.train.Features(feature=feature))
 
@@ -58,9 +78,9 @@ def test_tfrecords(config=FLAGS):
 
     filenames = get_tfrecord_files(config)
 
-    dataset = tf.contrib.data.TFRecordDataset(filenames)
+    dataset = tf.data.TFRecordDataset(filenames)
     dataset = dataset.map(parse_function)
-    dataset = dataset.shuffle(10000)
+    dataset = dataset.shuffle(50)
     dataset = dataset.batch(10)
     dataset = dataset.repeat(100)
 
@@ -74,7 +94,8 @@ def test_tfrecords(config=FLAGS):
             try:
                 img, lbl, names = sess.run(next_element)
                 print('%s\n%s\n%s ' % (str(img.shape), str(lbl.shape), str(names)))
-            except tf.errors.OutOfRangeError:
+            except tf.errors.OutOfRangeError as e:
+                print(e)
                 break
 
 

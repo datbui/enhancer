@@ -4,8 +4,7 @@ from glob import glob
 import numpy as np
 import scipy.misc
 import tensorflow as tf
-
-from config import FLAGS
+from PIL import Image
 
 CONFIG_TXT = 'config.txt'
 
@@ -14,6 +13,10 @@ TFRECORD = 'tfrecord'
 FILENAME = 'filename'
 
 LR_IMAGE = 'lr_image'
+
+INT1_IMAGE = 'int1_image'
+
+INT2_IMAGE = 'int2_image'
 
 HR_IMAGE = 'hr_image'
 
@@ -34,10 +37,16 @@ def get_tfrecord_files(config):
     return load_files(os.path.join(config.tfrecord_dir, config.dataset, config.subset), TFRECORD)
 
 
-def get_image(image_path, image_size, colored=False):
-    image = scipy.misc.imread(image_path, flatten=(not colored), mode='YCbCr').astype(np.float32)
-    image = do_resize(image, [image_size, image_size])
+def get_image(image_path, image_size=None, colored=True):
+    image = read_image(image_path, colored)
+    if image_size:
+        image = do_resize(image, [image_size, image_size])
     return _pre_process(image)
+
+
+def read_image(image_path, colored=True):
+    image = scipy.misc.imread(image_path, flatten=(not colored), mode='RGB').astype(np.float32)
+    return image
 
 
 def save_output(lr_img, prediction, hr_img, path):
@@ -93,23 +102,29 @@ def _post_process(images):
     return post_processed.squeeze()
 
 
-def parse_function(proto):
-    features = {
-        HEIGHT: tf.FixedLenFeature([], tf.int64),
-        WIDTH: tf.FixedLenFeature([], tf.int64),
-        DEPTH: tf.FixedLenFeature([], tf.int64),
-        # TODO Reshape doesn't work, I have to put the shape here.
-        HR_IMAGE: tf.FixedLenFeature((FLAGS.image_size, FLAGS.image_size, FLAGS.color_channels), tf.float32),
-        LR_IMAGE: tf.FixedLenFeature((256, 256, FLAGS.color_channels), tf.float32),
-        FILENAME: tf.FixedLenFeature([], tf.string)
-    }
-    parsed_features = tf.parse_single_example(proto, features)
+def tf_slice(tf_lr_image, dimension):
+    return tf.expand_dims(tf_lr_image[:, :, :, dimension], -1)
 
-    lr_images = parsed_features[LR_IMAGE]
-    hr_images = parsed_features[HR_IMAGE]
-    name = parsed_features[FILENAME]
 
-    return lr_images, hr_images, name
+def split_tif(input, output, size=256):
+    tifs = load_files(input, 'tif')
+    for tif in tifs:
+        img = Image.open(tif)
+        filename = os.path.basename(tif).split('.')[0]
+        print(filename)
+        try:
+            img.seek(0)
+            r = np.array(img)
+            img.seek(1)
+            g = np.array(img)
+            img.seek(2)
+            b = np.array(img)
+            output_image = Image.fromarray(np.stack([r, g, b], axis=-1))
+            output_image = output_image.resize([size, size])
+            output_image.save(os.path.join(output, '%s.png' % filename))
+        except EOFError as e:
+            print(e)
+            break
 
 
 if __name__ == '__main__':
