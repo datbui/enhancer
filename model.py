@@ -28,8 +28,8 @@ def model_fn(features, labels, mode, params):
                 with tf.name_scope('losses'):
                     mse = tf.losses.mean_squared_error(hr_images, predictions)
                     rmse = tf.sqrt(mse)
-                    psnr = tf.image.psnr(hr_images, predictions, max_val=1.0)
-                    ssim = tf.image.ssim(hr_images, predictions, max_val=1.0)
+                    psnr = tf_psnr(mse)
+                    ssim = tf_ssim(hr_images, predictions)
                     loss = 0.75 * rmse + 0.25 * (1 - ssim)
                 with tf.name_scope('train'):
                     train_op = tf.train.AdamOptimizer(learning_rate).minimize(loss, tf.train.get_global_step())
@@ -188,7 +188,6 @@ def _tf_fspecial_gauss(size, sigma):
     return g / tf.reduce_sum(g)
 
 
-@DeprecationWarning
 def tf_ssim(img1, img2, cs_map=False, mean_metric=True, size=11, sigma=1.5):
     """
     Compute structural similarity index metric.
@@ -265,7 +264,6 @@ def tf_ms_ssim(img1, img2, mean_metric=True, level=5):
     return value
 
 
-@DeprecationWarning
 def tf_psnr(mse):
     """
     PSNR is Peek Signal to Noise Ratio, which is similar to mean squared error.
@@ -282,7 +280,6 @@ def tf_psnr(mse):
     return -10. * tf.log(mse) / tf.log(10.)
 
 
-@DeprecationWarning
 def tf_histogram_loss(img1, img2):
     """
     Calculate histogram loss between two images.
