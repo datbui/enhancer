@@ -160,9 +160,11 @@ def rcnn(in_images, inter1, inter2, devices=['/device:CPU:0']):
 
             h1, h2, h3 = hidden_layer(l2_h1, l2_h2, l2_h3, w3, wr3, wt3, b3, '3')
 
-            hypothesis = tf.tanh(phase_shift(h3, 2))
+            p1 = tf.tanh(phase_shift(h1, 2))
+            p2 = tf.tanh(phase_shift(h2, 2))
+            p3 = tf.tanh(phase_shift(h3, 2))
 
-    return hypothesis
+    return p1, p2, p3
 
 
 def _tf_fspecial_gauss(size, sigma):
