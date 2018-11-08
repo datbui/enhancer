@@ -22,14 +22,14 @@ def model_fn(features, labels, mode, params):
                 int2_images = tf_slice(features[2], 0)
                 hr_images = tf_slice(labels, 0)
 
-            predictions = rcnn(lr_images, int1_images, int2_images, devices)
+            _, _, predictions = rcnn(lr_images, int1_images, int2_images, devices)
 
             if mode in (Modes.TRAIN, Modes.EVAL):
                 with tf.name_scope('losses'):
                     mse = tf.losses.mean_squared_error(hr_images, predictions)
                     rmse = tf.sqrt(mse)
-                    psnr = tf_psnr(mse)
-                    ssim = tf_ssim(hr_images, predictions)
+                    psnr = tf.image.psnr(hr_images, predictions, max_val=1.0)
+                    ssim = tf.image.ssim(hr_images, predictions, max_val=1.0)
                     loss = 0.75 * rmse + 0.25 * (1 - ssim)
                 with tf.name_scope('train'):
                     train_op = tf.train.AdamOptimizer(learning_rate).minimize(loss, tf.train.get_global_step())
