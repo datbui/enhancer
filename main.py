@@ -16,6 +16,10 @@ from utils import get_tfrecord_files, save_config, save_image, save_output, tf_s
 
 PREDICTION = 'prediction'
 
+INT1 = 'int1'
+
+INT2 = 'int2'
+
 LOW_RESOLUTION = 'low_resolution'
 
 HIGH_RESOLUTION = 'high_resolution'
@@ -165,12 +169,13 @@ def run_testing(session, config=FLAGS):
     # tf_initial_ssim = tf.image.ssim(tf_hr_image_tensor, tf_re_image, max_val=1.0)
     # tf_initial_msssim = tf.image.ssim_multiscale(tf_hr_image_tensor, tf_re_image, max_val=1.0)
 
-    r = rcnn(tf_slice(tf_lr_image, 0), tf_slice(tf_int1_image, 0), tf_slice(tf_int2_image, 0))
-    g = rcnn(tf_slice(tf_lr_image, 1), tf_slice(tf_int1_image, 1), tf_slice(tf_int2_image, 1))
-    b = rcnn(tf_slice(tf_lr_image, 2), tf_slice(tf_int1_image, 2), tf_slice(tf_int2_image, 2))
+    r1, r2, r3 = rcnn(tf_slice(tf_lr_image, 0), tf_slice(tf_int1_image, 0), tf_slice(tf_int2_image, 0))
+    g1, g2, g3 = rcnn(tf_slice(tf_lr_image, 1), tf_slice(tf_int1_image, 1), tf_slice(tf_int2_image, 1))
+    b1, b2, b3 = rcnn(tf_slice(tf_lr_image, 2), tf_slice(tf_int1_image, 2), tf_slice(tf_int2_image, 2))
     # tf_prediction = rcnn(slice(tf_lr_image, 2), slice(tf_int1_image, 2), slice(tf_int2_image, 2))
-    tf_prediction = tf.stack([tf.squeeze(r, axis=3), tf.squeeze(g, axis=3), tf.squeeze(b, axis=3)], axis=3)
-    # tf_prediction = tf.stack([r,g,b],axis=3)
+    tf_prediction1 = tf.stack([tf.squeeze(r1, axis=3), tf.squeeze(g1, axis=3), tf.squeeze(b1, axis=3)], axis=3)
+    tf_prediction2 = tf.stack([tf.squeeze(r2, axis=3), tf.squeeze(g2, axis=3), tf.squeeze(b2, axis=3)], axis=3)
+    tf_prediction3 = tf.stack([tf.squeeze(r3, axis=3), tf.squeeze(g3, axis=3), tf.squeeze(b3, axis=3)], axis=3)
     tf.initialize_all_variables().run()
 
     # predicted_mse = tf.losses.mean_squared_error(tf_hr_image_tensor, tf_prediction)
@@ -191,12 +196,14 @@ def run_testing(session, config=FLAGS):
             # tf_predicted_params = [predicted_rmse, predicted_psnr, predicted_ssim, predicted_msssim]
             # next_element, re_image, prediction, initial_params, predicted_params = session.run([tf_next_element, tf_re_image, tf_prediction, tf_initial_params, tf_predicted_params])
 
-            next_element, re_image, prediction = session.run([tf_next_element, tf_re_image, tf_prediction])
+            next_element, re_image, prediction1, prediction2, prediction3 = session.run([tf_next_element, tf_re_image, tf_prediction1, tf_prediction2, tf_prediction3])
             (lr_image, _, _, hr_image, name) = next_element
             # (initial_rmse, initial_psnr, initial_ssim, initial_msssim) = initial_params
             # (rmse, psnr, ssim, msssim) = predicted_params
 
-            prediction = np.squeeze(prediction)
+            prediction1 = np.squeeze(prediction1)
+            prediction2 = np.squeeze(prediction2)
+            prediction3 = np.squeeze(prediction3)
             re_image = np.squeeze(re_image)
             hr_image = np.squeeze(hr_image)
 
@@ -215,10 +222,13 @@ def run_testing(session, config=FLAGS):
             name = str(name[0]).replace('b\'', '').replace('\'', '')
             logging.info('Enhance resolution for %s' % name)
             # writer.writerows([[name, initial_rmse, rmse, initial_psnr, psnr, np.squeeze(initial_ssim), np.squeeze(ssim), np.squeeze(initial_msssim), np.squeeze(msssim), initial_nmi, nmi, initial_wsnr, _wsnr, initial_ifc, _ifc, initial_nqm, _nqm]])
-            save_image(image=prediction, path=os.path.join(config.output_dir, PREDICTION, '%s.jpg' % name))
+
+            save_image(image=prediction1, path=os.path.join(config.output_dir, INT1, '%s.jpg' % name))
+            save_image(image=prediction2, path=os.path.join(config.output_dir, INT2, '%s.jpg' % name))
+            save_image(image=prediction3, path=os.path.join(config.output_dir, PREDICTION, '%s.jpg' % name))
             save_image(image=re_image, path=os.path.join(config.output_dir, LOW_RESOLUTION, '%s.jpg' % name))
             save_image(image=hr_image, path=os.path.join(config.output_dir, HIGH_RESOLUTION, '%s.jpg' % name))
-            save_output(lr_img=re_image, prediction=prediction, hr_img=hr_image, path=os.path.join(config.output_dir, '%s.jpg' % name))
+            save_output(lr_img=re_image, prediction=prediction3, hr_img=hr_image, path=os.path.join(config.output_dir, '%s.jpg' % name))
             print(name)
         except tf.errors.OutOfRangeError as e:
             logging.error(e)
@@ -244,6 +254,8 @@ def main(_):
         else:
             if not os.path.exists(FLAGS.output_dir):
                 os.makedirs(os.path.join(FLAGS.output_dir, PREDICTION))
+                os.makedirs(os.path.join(FLAGS.output_dir, INT1))
+                os.makedirs(os.path.join(FLAGS.output_dir, INT2))
                 os.makedirs(os.path.join(FLAGS.output_dir, LOW_RESOLUTION))
                 os.makedirs(os.path.join(FLAGS.output_dir, HIGH_RESOLUTION))
             run_testing(sess)
