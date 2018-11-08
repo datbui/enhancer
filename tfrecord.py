@@ -3,7 +3,7 @@ import os
 import tensorflow as tf
 
 from config import FLAGS
-from utils import FILENAME, HEIGHT, HR_IMAGE, LR_IMAGE, TFRECORD, WIDTH, get_image, get_tfrecord_files, load_files, save_config
+from utils import FILENAME, HEIGHT, HR_IMAGE, LR_IMAGE, TFRECORD, WIDTH, get_image, get_tfrecord_files, load_files, save_config, INT1_IMAGE, INT2_IMAGE
 
 
 def _bytes_feature(value):
@@ -23,6 +23,8 @@ def parse_function(proto):
         HEIGHT: tf.FixedLenFeature([], tf.int64),
         WIDTH: tf.FixedLenFeature([], tf.int64),
         HR_IMAGE: tf.FixedLenFeature([], tf.string),
+        INT2_IMAGE: tf.FixedLenFeature([], tf.string),
+        INT1_IMAGE: tf.FixedLenFeature([], tf.string),
         LR_IMAGE: tf.FixedLenFeature([], tf.string),
         FILENAME: tf.FixedLenFeature([], tf.string)
     }

@@ -6,6 +6,7 @@ from tensorflow.python.estimator.model_fn import ModeKeys as Modes
 
 from config import FLAGS
 from subpixel import phase_shift
+from utils import tf_slice
 
 LOG_EVERY_STEPS = 10
 
@@ -18,13 +19,13 @@ def model_fn(features, labels, mode, params):
     for d in devices:
         with tf.device(d):
             with tf.name_scope('inputs'):
-                lr_images = features
-                hr_images = labels
+                lr_images = tf_slice(features, 0)
+                hr_images = tf_slice(labels, 0)
                 # Probability of keeping a node during dropout = 1.0 at test time (no dropout) and 0.75 at training time
                 pkeep_conv = tf.Variable(initial_value=params.pkeep_conv) if mode == Modes.TRAIN else tf.constant(params.pkeep_conv, dtype=tf.float32)
 
             size = labels.get_shape().as_list()[1]
-            predictions = cnn(lr_images, size, pkeep_conv, devices)
+            predictions = cnn(lr_images, size, devices)
 
             if mode in (Modes.TRAIN, Modes.EVAL):
                 with tf.name_scope('losses'):
@@ -134,7 +135,6 @@ def _tf_fspecial_gauss(size, sigma):
     return g / tf.reduce_sum(g)
 
 
-@DeprecationWarning
 def tf_ssim(img1, img2, cs_map=False, mean_metric=True, size=11, sigma=1.5):
     """
     Compute structural similarity index metric.
@@ -211,7 +211,6 @@ def tf_ms_ssim(img1, img2, mean_metric=True, level=5):
     return value
 
 
-@DeprecationWarning
 def tf_psnr(mse):
     """
     PSNR is Peek Signal to Noise Ratio, which is similar to mean squared error.
@@ -264,6 +263,7 @@ def tf_histogram_loss(img1, img2):
     return tf.losses.mean_squared_error(hist1_loss, hist2_loss)
 
 
+@DeprecationWarning
 def _tf_logic_range(img, x, y):
     """
     Check inclusive range
@@ -275,6 +275,7 @@ def _tf_logic_range(img, x, y):
     return tf.logical_and(tf.greater_equal(img, x), tf.less_equal(img, y))
 
 
+@DeprecationWarning
 def tf_intensity_normalization(image):
     threshold = 200 / 255
     additional_1 = tf.fill(tf.shape(image), 240 / 255)
