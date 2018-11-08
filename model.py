@@ -86,13 +86,13 @@ def cnn(lr_images, output_size, devices=['/device:CPU:0']):
     channels = lr_images.get_shape().as_list()[3]
     for d in devices:
         with tf.device(d):
-            with tf.name_scope('weights'):
+            with tf.variable_scope('weights', reuse=tf.AUTO_REUSE):
                 w1 = tf.get_variable(initializer=tf.random_normal([filters_shape[0], filters_shape[0], channels, filters[0]], stddev=1e-3), name='cnn_w1')
                 w2 = tf.get_variable(initializer=tf.random_normal([filters_shape[1], filters_shape[1], filters[0], filters[1]], stddev=1e-3), name='cnn_w2')
                 w3 = tf.get_variable(initializer=tf.random_normal([filters_shape[2], filters_shape[2], filters[1], filters[2]], stddev=1e-3), name='cnn_w3')
                 w4 = tf.get_variable(initializer=tf.random_normal([filters_shape[3], filters_shape[3], filters[2], filters[3]], stddev=1e-3), name='cnn_w4')
                 w5 = tf.get_variable(initializer=tf.random_normal([filters_shape[4], filters_shape[4], filters[3], filters[4]], stddev=1e-3), name='cnn_w5')
-            with tf.name_scope('biases'):
+            with tf.variable_scope('biases', reuse=tf.AUTO_REUSE):
                 b1 = tf.get_variable(initializer=tf.zeros(filters[0]), name='cnn_b1')
                 b2 = tf.get_variable(initializer=tf.zeros(filters[1]), name='cnn_b2')
                 b3 = tf.get_variable(initializer=tf.zeros(filters[2]), name='cnn_b3')

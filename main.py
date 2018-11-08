@@ -13,7 +13,7 @@ from tfrecord import parse_function
 
 from config import FLAGS
 from model import cnn, model_fn, tf_psnr, tf_ssim
-from utils import get_tfrecord_files, save_config, save_image, save_output
+from utils import get_tfrecord_files, save_config, save_image, save_output, tf_slice
 
 PREDICTION = 'prediction'
 
@@ -159,37 +159,40 @@ def run_testing(session, config=FLAGS):
 
     (tf_lr_image, tf_hr_image_tensor, _) = tf_next_element
     tf_re_image = tf.image.resize_images(tf_lr_image, [FLAGS.image_size, FLAGS.image_size])
-    tf_initial_mse = tf.losses.mean_squared_error(tf_hr_image_tensor, tf_re_image)
-    tf_initial_rmse = tf.sqrt(tf_initial_mse)
-    tf_initial_psnr = tf_psnr(tf_initial_mse)
-    tf_initial_ssim = tf_ssim(tf_hr_image_tensor, tf_re_image)
+    # tf_initial_mse = tf.losses.mean_squared_error(tf_hr_image_tensor, tf_re_image)
+    # tf_initial_rmse = tf.sqrt(tf_initial_mse)
+    # tf_initial_psnr = tf_psnr(tf_initial_mse)
+    # tf_initial_ssim = tf_ssim(tf_hr_image_tensor, tf_re_image)
 
-    tf_prediction = cnn(tf_lr_image, FLAGS.image_size)
+    r = cnn(tf_slice(tf_lr_image, 0), FLAGS.image_size)
+    g = cnn(tf_slice(tf_lr_image, 1), FLAGS.image_size)
+    b = cnn(tf_slice(tf_lr_image, 2), FLAGS.image_size)
+    tf_prediction = tf.stack([tf.squeeze(r, axis=3), tf.squeeze(g, axis=3), tf.squeeze(b, axis=3)], axis=3)
     tf.initialize_all_variables().run()
 
-    predicted_mse = tf.losses.mean_squared_error(tf_hr_image_tensor, tf_prediction)
-    predicted_rmse = tf.sqrt(predicted_mse)
-    predicted_psnr = tf_psnr(predicted_mse)
-    predicted_ssim = tf_ssim(tf_hr_image_tensor, tf_prediction)
+    # predicted_mse = tf.losses.mean_squared_error(tf_hr_image_tensor, tf_prediction)
+    # predicted_rmse = tf.sqrt(predicted_mse)
+    # predicted_psnr = tf_psnr(predicted_mse)
+    # predicted_ssim = tf_ssim(tf_hr_image_tensor, tf_prediction)
 
     load(session, config.checkpoint_dir)
 
-    params_file = open('metrics.csv', 'w+')
-    writer = csv.writer(params_file)
-    writer.writerows([['filename', 'initial_rmse', 'rmse', 'initial_psnr', 'psnr', 'initial_ssim', 'ssim']])
+    # params_file = open('metrics.csv', 'w+')
+    # writer = csv.writer(params_file)
+    # writer.writerows([['filename', 'initial_rmse', 'rmse', 'initial_psnr', 'psnr', 'initial_ssim', 'ssim']])
 
     while True:
         try:
-            tf_initial_params = [tf_initial_rmse, tf_initial_psnr, tf_initial_ssim]
-            tf_predicted_params = [predicted_rmse, predicted_psnr, predicted_ssim]
-            next_element, re_image, prediction, initial_params, predicted_params = session.run([tf_next_element, tf_re_image, tf_prediction, tf_initial_params, tf_predicted_params])
+            # tf_initial_params = [tf_initial_rmse, tf_initial_psnr, tf_initial_ssim]
+            # tf_predicted_params = [predicted_rmse, predicted_psnr, predicted_ssim]
+            next_element, re_image, prediction = session.run([tf_next_element, tf_re_image, tf_prediction])
             (lr_image, hr_image, name) = next_element
-            (initial_rmse, initial_psnr, initial_ssim) = initial_params
-            (rmse, psnr, ssim) = predicted_params
+            # (initial_rmse, initial_psnr, initial_ssim) = initial_params
+            # (rmse, psnr, ssim) = predicted_params
             prediction = np.squeeze(prediction)
             name = str(name[0]).replace('b\'', '').replace('\'', '')
             logging.info('Enhance resolution for %s' % name)
-            writer.writerows([[name, initial_rmse, rmse, initial_psnr, psnr, initial_ssim, ssim]])
+            # writer.writerows([[name, initial_rmse, rmse, initial_psnr, psnr, initial_ssim, ssim]])
             save_image(image=prediction, path=os.path.join(config.output_dir, PREDICTION, '%s.jpg' % name))
             save_image(image=re_image, path=os.path.join(config.output_dir, LOW_RESOLUTION, '%s.jpg' % name))
             save_image(image=hr_image, path=os.path.join(config.output_dir, HIGH_RESOLUTION, '%s.jpg' % name))
@@ -198,7 +201,7 @@ def run_testing(session, config=FLAGS):
             logging.error(e)
             break
 
-    params_file.close()
+    # params_file.close()
 
 
 def main(_):
