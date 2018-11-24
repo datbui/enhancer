@@ -71,7 +71,7 @@ def input_fn(filenames, epoch, shuffle, batch_size):
         dataset = dataset.shuffle(batch_size * 10, reshuffle_each_iteration=True)
     dataset = dataset.repeat(epoch)
     dataset = dataset.batch(batch_size)
-    prefetch_batch_size = int(len(filenames) / batch_size)
+    prefetch_batch_size = batch_size
     dataset = dataset.prefetch(prefetch_batch_size)
     iterator = dataset.make_one_shot_iterator()
     inputs, int1_inputs, int2_inputs, labels, names = iterator.get_next()
