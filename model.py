@@ -13,25 +13,30 @@ SUMMARY_EVERY_STEPS = 100
 
 def model_fn(features, labels, mode, params):
     learning_rate = params.learning_rate
-    devices = '/device:%s' % params
-    with tf.device(devices):
-        with tf.name_scope('inputs'):
-            lr_images = tf_slice(features[0], 0)
-            int1_images = tf_slice(features[1], 0)
-            int2_images = tf_slice(features[2], 0)
-            hr_images = tf_slice(labels, 0)
+    devices = [('/device:%s' % d) for d in params.device.split(',')]
+    with tf.name_scope('inputs'):
+        for d in devices:
+            with tf.device(d):
+                lr_images = tf_slice(features[0], 0)
+                int1_images = tf_slice(features[1], 0)
+                int2_images = tf_slice(features[2], 0)
+                hr_images = tf_slice(labels, 0)
 
-        _, _, predictions = rcnn(lr_images, int1_images, int2_images, devices)
+    _, _, predictions = rcnn(lr_images, int1_images, int2_images, devices)
 
-        if mode in (Modes.TRAIN, Modes.EVAL):
-            with tf.name_scope('losses'):
-                mse = tf.losses.mean_squared_error(hr_images, predictions)
-                rmse = tf.sqrt(mse)
-                psnr = tf_psnr(mse)
-                ssim = tf_ssim(hr_images, predictions)
-                loss = 0.75 * rmse + 0.25 * (1 - ssim)
-            with tf.name_scope('train'):
-                train_op = tf.train.AdamOptimizer(learning_rate).minimize(loss, tf.train.get_global_step())
+    if mode in (Modes.TRAIN, Modes.EVAL):
+        with tf.name_scope('losses'):
+            for d in devices:
+                with tf.device(d):
+                    mse = tf.losses.mean_squared_error(hr_images, predictions)
+                    rmse = tf.sqrt(mse)
+                    psnr = tf_psnr(mse)
+                    ssim = tf_ssim(hr_images, predictions)
+                    loss = 0.75 * rmse + 0.25 * (1 - ssim)
+        with tf.name_scope('train'):
+            for d in devices:
+                with tf.device(d):
+                    train_op = tf.train.AdamOptimizer(learning_rate).minimize(loss, tf.train.get_global_step())
 
     if mode in (Modes.TRAIN, Modes.EVAL):
         tf.summary.scalar('mse', mse)
@@ -131,25 +136,31 @@ def rcnn(in_images, inter1, inter2, devices=['/device:CPU:0']):
     fnums = [32, 16, 4]
 
     with tf.variable_scope('first_layer', reuse=tf.AUTO_REUSE):
-        # first hidden layer
-        w1 = tf.get_variable(initializer=tf.random_normal([fshape[0], fshape[0], channels, fnums[0]], stddev=1e-3), name='cnn_w1')
-        wr1 = tf.get_variable(initializer=tf.random_normal([1, 1, fnums[0], fnums[0]], stddev=1e-3), name='cnn_wr1')
-        wt1 = tf.get_variable(initializer=tf.random_normal([fshape[0], fshape[0], channels, fnums[0]], stddev=1e-3), name='cnn_wt1')
-        b1 = tf.get_variable(initializer=tf.zeros(fnums[0]), name='cnn_b1')
+        for d in devices:
+            with tf.device(d):
+                # first hidden layer
+                w1 = tf.get_variable(initializer=tf.random_normal([fshape[0], fshape[0], channels, fnums[0]], stddev=1e-3), name='cnn_w1')
+                wr1 = tf.get_variable(initializer=tf.random_normal([1, 1, fnums[0], fnums[0]], stddev=1e-3), name='cnn_wr1')
+                wt1 = tf.get_variable(initializer=tf.random_normal([fshape[0], fshape[0], channels, fnums[0]], stddev=1e-3), name='cnn_wt1')
+                b1 = tf.get_variable(initializer=tf.zeros(fnums[0]), name='cnn_b1')
 
     with tf.variable_scope('second_layer', reuse=tf.AUTO_REUSE):
-        # second hidden layer
-        w2 = tf.get_variable(initializer=tf.random_normal([fshape[1], fshape[1], fnums[0], fnums[1]], stddev=1e-3), name='cnn_w2')
-        wr2 = tf.get_variable(initializer=tf.random_normal([1, 1, fnums[1], fnums[1]], stddev=1e-3), name='cnn_wr2')
-        wt2 = tf.get_variable(initializer=tf.random_normal([fshape[1], fshape[1], fnums[0], fnums[1]], stddev=1e-3), name='cnn_wt2')
-        b2 = tf.get_variable(initializer=tf.zeros(fnums[1]), name='cnn_b2')
+        for d in devices:
+            with tf.device(d):
+                # second hidden layer
+                w2 = tf.get_variable(initializer=tf.random_normal([fshape[1], fshape[1], fnums[0], fnums[1]], stddev=1e-3), name='cnn_w2')
+                wr2 = tf.get_variable(initializer=tf.random_normal([1, 1, fnums[1], fnums[1]], stddev=1e-3), name='cnn_wr2')
+                wt2 = tf.get_variable(initializer=tf.random_normal([fshape[1], fshape[1], fnums[0], fnums[1]], stddev=1e-3), name='cnn_wt2')
+                b2 = tf.get_variable(initializer=tf.zeros(fnums[1]), name='cnn_b2')
 
     with tf.variable_scope('third_layer', reuse=tf.AUTO_REUSE):
-        # third hidden layer
-        w3 = tf.get_variable(initializer=tf.random_normal([fshape[2], fshape[2], fnums[1], fnums[2]], stddev=1e-3), name='cnn_w3')
-        wr3 = tf.get_variable(initializer=tf.random_normal([1, 1, fnums[2], fnums[2]], stddev=1e-3), name='cnn_wr3')
-        wt3 = tf.get_variable(initializer=tf.random_normal([fshape[2], fshape[2], fnums[1], fnums[2]], stddev=1e-3), name='cnn_wt3')
-        b3 = tf.get_variable(initializer=tf.zeros(fnums[2]), name='cnn_b3')
+        for d in devices:
+            with tf.device(d):
+                # third hidden layer
+                w3 = tf.get_variable(initializer=tf.random_normal([fshape[2], fshape[2], fnums[1], fnums[2]], stddev=1e-3), name='cnn_w3')
+                wr3 = tf.get_variable(initializer=tf.random_normal([1, 1, fnums[2], fnums[2]], stddev=1e-3), name='cnn_wr3')
+                wt3 = tf.get_variable(initializer=tf.random_normal([fshape[2], fshape[2], fnums[1], fnums[2]], stddev=1e-3), name='cnn_wt3')
+                b3 = tf.get_variable(initializer=tf.zeros(fnums[2]), name='cnn_b3')
 
     for d in devices:
         with tf.device(d):
