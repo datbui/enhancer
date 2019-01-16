@@ -15,27 +15,26 @@ SUMMARY_EVERY_STEPS = 100
 
 def model_fn(features, labels, mode, params):
     learning_rate = params.learning_rate
-    devices = [('/device:%s' % d) for d in params.device.split(',')]
-    for d in devices:
-        with tf.device(d):
-            with tf.name_scope('inputs'):
-                lr_images = tf_slice(features, 0)
-                hr_images = tf_slice(labels, 0)
-                # Probability of keeping a node during dropout = 1.0 at test time (no dropout) and 0.75 at training time
-                pkeep_conv = tf.Variable(initial_value=params.pkeep_conv) if mode == Modes.TRAIN else tf.constant(params.pkeep_conv, dtype=tf.float32)
+    devices = '/device:%s' % params.device
+    with tf.device(devices):
+        with tf.name_scope('inputs'):
+            lr_images = tf_slice(features, 0)
+            hr_images = tf_slice(labels, 0)
+            # Probability of keeping a node during dropout = 1.0 at test time (no dropout) and 0.75 at training time
+            pkeep_conv = tf.Variable(initial_value=params.pkeep_conv) if mode == Modes.TRAIN else tf.constant(params.pkeep_conv, dtype=tf.float32)
 
-            size = labels.get_shape().as_list()[1]
-            predictions = cnn(lr_images, size, devices)
+        size = labels.get_shape().as_list()[1]
+        predictions = cnn(lr_images, size, devices)
 
-            if mode in (Modes.TRAIN, Modes.EVAL):
-                with tf.name_scope('losses'):
-                    mse = tf.losses.mean_squared_error(hr_images, predictions)
-                    rmse = tf.sqrt(mse)
-                    psnr = tf_psnr(mse)
-                    ssim = tf_ssim(hr_images, predictions)
-                    loss = 0.75 * rmse + 0.25 * (1 - ssim)
-                with tf.name_scope('train'):
-                    train_op = tf.train.AdamOptimizer(learning_rate).minimize(loss, tf.train.get_global_step())
+        if mode in (Modes.TRAIN, Modes.EVAL):
+            with tf.name_scope('losses'):
+                mse = tf.losses.mean_squared_error(hr_images, predictions)
+                rmse = tf.sqrt(mse)
+                psnr = tf_psnr(mse)
+                ssim = tf_ssim(hr_images, predictions)
+                loss = 0.75 * rmse + 0.25 * (1 - ssim)
+            with tf.name_scope('train'):
+                train_op = tf.train.AdamOptimizer(learning_rate).minimize(loss, tf.train.get_global_step())
 
     if mode in (Modes.TRAIN, Modes.EVAL):
         tf.summary.scalar('mse', mse)
