@@ -1,3 +1,4 @@
+import csv
 import logging
 import logging.config
 import os
@@ -155,7 +156,7 @@ def run_testing(session, config=FLAGS):
     files = get_tfrecord_files(config)
     logging.info('Total number of files  %d' % len(files))
 
-    dataset = tf.data.TFRecordDataset(files, buffer_size=10000)
+    dataset = tf.data.TFRecordDataset(files, buffer_size=10)
     dataset = dataset.map(parse_function)
     dataset = dataset.batch(1)
     iterator = dataset.make_one_shot_iterator()
@@ -168,6 +169,7 @@ def run_testing(session, config=FLAGS):
     # tf_initial_psnr = tf.image.psnr(tf_hr_image_tensor, tf_re_image, max_val=1.0)
     # tf_initial_ssim = tf.image.ssim(tf_hr_image_tensor, tf_re_image, max_val=1.0)
     # tf_initial_msssim = tf.image.ssim_multiscale(tf_hr_image_tensor, tf_re_image, max_val=1.0)
+    # tf_initial_params = [tf_initial_rmse, tf_initial_psnr, tf_initial_ssim, tf_initial_msssim]
 
     r1, r2, r3 = rcnn(tf_slice(tf_lr_image, 0), tf_slice(tf_int1_image, 0), tf_slice(tf_int2_image, 0))
     g1, g2, g3 = rcnn(tf_slice(tf_lr_image, 1), tf_slice(tf_int1_image, 1), tf_slice(tf_int2_image, 1))
@@ -176,65 +178,69 @@ def run_testing(session, config=FLAGS):
     tf_prediction1 = tf.stack([tf.squeeze(r1, axis=3), tf.squeeze(g1, axis=3), tf.squeeze(b1, axis=3)], axis=3)
     tf_prediction2 = tf.stack([tf.squeeze(r2, axis=3), tf.squeeze(g2, axis=3), tf.squeeze(b2, axis=3)], axis=3)
     tf_prediction3 = tf.stack([tf.squeeze(r3, axis=3), tf.squeeze(g3, axis=3), tf.squeeze(b3, axis=3)], axis=3)
+    tf_prediction = (tf_prediction1, tf_prediction2, tf_prediction3)
     tf.initialize_all_variables().run()
 
-    # predicted_mse = tf.losses.mean_squared_error(tf_hr_image_tensor, tf_prediction)
-    # predicted_rmse = tf.sqrt(predicted_mse)
-    # predicted_psnr = tf.image.psnr(tf_hr_image_tensor, tf_prediction, max_val=1.0)
-    # predicted_ssim = tf.image.ssim(tf_hr_image_tensor, tf_prediction, max_val=1.0)
-    # predicted_msssim = tf.image.ssim_multiscale(tf_hr_image_tensor, tf_prediction, max_val=1.0)
+    tf_predicted_mse = tf.losses.mean_squared_error(tf_hr_image_tensor, tf_prediction)
+    tf_predicted_rmse = tf.sqrt(tf_predicted_mse)
+    tf_predicted_psnr = tf.image.psnr(tf_hr_image_tensor, tf_prediction, max_val=1.0)
+    tf_predicted_ssim = tf.image.ssim(tf_hr_image_tensor, tf_prediction, max_val=1.0)
+    tf_predicted_msssim = tf.image.ssim_multiscale(tf_hr_image_tensor, tf_prediction, max_val=1.0)
+    tf_predicted_params = [tf_predicted_rmse, tf_predicted_psnr, tf_predicted_ssim, tf_predicted_msssim]
 
     load(session, config.checkpoint_dir)
 
-    # params_file = open('metrics.csv', 'w+')
-    # writer = csv.writer(params_file)
-    # writer.writerows([['filename', 'initial_rmse', 'rmse', 'initial_psnr', 'psnr', 'initial_ssim', 'ssim', 'initial_msssim', 'msssim', 'initial_nmi', 'nmi', 'initial_wsnr', 'wsnr', 'initial_ifc', 'ifc', 'initial_nqm', 'nqm']])
+    count = 1
+    try:
+        params_file = open('metrics.csv', 'w+')
+        writer = csv.writer(params_file)
+        # writer.writerows([['filename', 'initial_rmse', 'rmse', 'initial_psnr', 'psnr', 'initial_ssim', 'ssim', 'initial_msssim', 'msssim', 'initial_nmi', 'nmi', 'initial_wsnr', 'wsnr', 'initial_ifc', 'ifc', 'initial_nqm', 'nqm']])
 
-    while True:
-        try:
-            # tf_initial_params = [tf_initial_rmse, tf_initial_psnr, tf_initial_ssim, tf_initial_msssim]
-            # tf_predicted_params = [predicted_rmse, predicted_psnr, predicted_ssim, predicted_msssim]
-            # next_element, re_image, prediction, initial_params, predicted_params = session.run([tf_next_element, tf_re_image, tf_prediction, tf_initial_params, tf_predicted_params])
+        writer.writerows([['filename', 'rmse', 'psnr', 'ssim', 'msssim']])
 
-            next_element, re_image, prediction1, prediction2, prediction3 = session.run([tf_next_element, tf_re_image, tf_prediction1, tf_prediction2, tf_prediction3])
-            (lr_image, _, _, hr_image, name) = next_element
-            # (initial_rmse, initial_psnr, initial_ssim, initial_msssim) = initial_params
-            # (rmse, psnr, ssim, msssim) = predicted_params
+        while True:
+            try:
+                next_element, re_image, prediction, predicted_params = session.run([tf_next_element, tf_re_image, tf_prediction, tf_predicted_params])
 
-            prediction1 = np.squeeze(prediction1)
-            prediction2 = np.squeeze(prediction2)
-            prediction3 = np.squeeze(prediction3)
-            re_image = np.squeeze(re_image)
-            hr_image = np.squeeze(hr_image)
+                (rmse, psnr, ssim, msssim) = predicted_params
+                (lr_image, _, _, hr_image, name) = next_element
+                name = str(name[0]).replace('b\'', '').replace('\'', '')
 
-            # initial_nmi = normalized_mutual_info_score(hr_image.flatten(), re_image.flatten())
-            # nmi = normalized_mutual_info_score(hr_image.flatten(), prediction.flatten())
+                prediction1 = np.squeeze(prediction1)
+                prediction2 = np.squeeze(prediction2)
+                prediction3 = np.squeeze(prediction3)
+                re_image = np.squeeze(re_image)
+                hr_image = np.squeeze(hr_image)
 
-            # initial_wsnr = wsnr(hr_image, re_image)
-            # _wsnr = wsnr(hr_image, prediction)
+                # initial_nmi = normalized_mutual_info_score(hr_image.flatten(), re_image.flatten())
+                # nmi = normalized_mutual_info_score(hr_image.flatten(), prediction.flatten())
 
-            # initial_ifc = pbvif(hr_image, re_image)
-            # _ifc = pbvif(hr_image, prediction)
+                # initial_wsnr = wsnr(hr_image, re_image)
+                # _wsnr = wsnr(hr_image, prediction)
 
-            # initial_nqm = nqm(hr_image, re_image)
-            # _nqm = nqm(hr_image, prediction)
+                # initial_ifc = pbvif(hr_image, re_image)
+                # _ifc = pbvif(hr_image, prediction)
 
-            name = str(name[0]).replace('b\'', '').replace('\'', '')
-            logging.info('Enhance resolution for %s' % name)
-            # writer.writerows([[name, initial_rmse, rmse, initial_psnr, psnr, np.squeeze(initial_ssim), np.squeeze(ssim), np.squeeze(initial_msssim), np.squeeze(msssim), initial_nmi, nmi, initial_wsnr, _wsnr, initial_ifc, _ifc, initial_nqm, _nqm]])
+                # initial_nqm = nqm(hr_image, re_image)
+                # _nqm = nqm(hr_image, prediction)
 
-            save_image(image=prediction1, path=os.path.join(config.output_dir, INT1, '%s.jpg' % name))
-            save_image(image=prediction2, path=os.path.join(config.output_dir, INT2, '%s.jpg' % name))
-            save_image(image=prediction3, path=os.path.join(config.output_dir, PREDICTION, '%s.jpg' % name))
-            save_image(image=re_image, path=os.path.join(config.output_dir, LOW_RESOLUTION, '%s.jpg' % name))
-            save_image(image=hr_image, path=os.path.join(config.output_dir, HIGH_RESOLUTION, '%s.jpg' % name))
-            save_output(lr_img=re_image, prediction=prediction3, hr_img=hr_image, path=os.path.join(config.output_dir, '%s.jpg' % name))
-            print(name)
-        except tf.errors.OutOfRangeError as e:
-            logging.error(e)
-            break
+                writer.writerows([[name, rmse, np.squeeze(psnr), np.squeeze(ssim), np.squeeze(msssim)]])
+                save_image(image=prediction1, path=os.path.join(config.output_dir, INT1, '%s.jpg' % name))
+                save_image(image=prediction2, path=os.path.join(config.output_dir, INT2, '%s.jpg' % name))
+                save_image(image=prediction3, path=os.path.join(config.output_dir, PREDICTION, '%s.jpg' % name))
+                save_image(image=re_image, path=os.path.join(config.output_dir, LOW_RESOLUTION, '%s.jpg' % name))
+                save_image(image=hr_image, path=os.path.join(config.output_dir, HIGH_RESOLUTION, '%s.jpg' % name))
+                save_output(lr_img=re_image, prediction=prediction3, hr_img=hr_image, path=os.path.join(config.output_dir, '%s.jpg' % name))
 
-    # params_file.close()
+                logging.info("Enhance resolution for %3.0d %s" % (count, name))
+                count = count + 1
+            except tf.errors.OutOfRangeError as e:
+                logging.error(e)
+                break
+    except KeyboardInterrupt as e:
+        print("Cancel by user")
+    finally:
+        params_file.close()
 
 
 def main(_):
