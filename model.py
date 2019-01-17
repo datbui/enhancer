@@ -13,26 +13,25 @@ SUMMARY_EVERY_STEPS = 100
 
 def model_fn(features, labels, mode, params):
     learning_rate = params.learning_rate
-    devices = [('/device:%s' % d) for d in params.device.split(',')]
-    for d in devices:
-        with tf.device(d):
-            with tf.name_scope('inputs'):
-                lr_images = tf_slice(features[0], 0)
-                int1_images = tf_slice(features[1], 0)
-                int2_images = tf_slice(features[2], 0)
-                hr_images = tf_slice(labels, 0)
+    devices = '/device:%s' % params
+    with tf.device(devices):
+        with tf.name_scope('inputs'):
+            lr_images = tf_slice(features[0], 0)
+            int1_images = tf_slice(features[1], 0)
+            int2_images = tf_slice(features[2], 0)
+            hr_images = tf_slice(labels, 0)
 
-            _, _, predictions = rcnn(lr_images, int1_images, int2_images, devices)
+        _, _, predictions = rcnn(lr_images, int1_images, int2_images, devices)
 
-            if mode in (Modes.TRAIN, Modes.EVAL):
-                with tf.name_scope('losses'):
-                    mse = tf.losses.mean_squared_error(hr_images, predictions)
-                    rmse = tf.sqrt(mse)
-                    psnr = tf_psnr(mse)
-                    ssim = tf_ssim(hr_images, predictions)
-                    loss = 0.75 * rmse + 0.25 * (1 - ssim)
-                with tf.name_scope('train'):
-                    train_op = tf.train.AdamOptimizer(learning_rate).minimize(loss, tf.train.get_global_step())
+        if mode in (Modes.TRAIN, Modes.EVAL):
+            with tf.name_scope('losses'):
+                mse = tf.losses.mean_squared_error(hr_images, predictions)
+                rmse = tf.sqrt(mse)
+                psnr = tf_psnr(mse)
+                ssim = tf_ssim(hr_images, predictions)
+                loss = 0.75 * rmse + 0.25 * (1 - ssim)
+            with tf.name_scope('train'):
+                train_op = tf.train.AdamOptimizer(learning_rate).minimize(loss, tf.train.get_global_step())
 
     if mode in (Modes.TRAIN, Modes.EVAL):
         tf.summary.scalar('mse', mse)
