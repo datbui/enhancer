@@ -2,7 +2,7 @@ import tensorflow as tf
 
 flags = tf.app.flags
 flags.DEFINE_string("dataset", "images_cleaned", "The name of dataset [celebA, mnist, lsun ...]")
-flags.DEFINE_string("subset", "train", "The name of subset [train, validation, test]")
+flags.DEFINE_string("subset", "PancreaticTMA", "The name of subset [train, validation, test]")
 flags.DEFINE_string("extension", "png", "The file extension [tif, jpg....]")
 flags.DEFINE_string("checkpoint_dir", "checkpoint", "Directory name to save the checkpoints [checkpoint]")
 flags.DEFINE_string("summaries_dir", "summaries", "Directory name to save training summaries[summaries]")
