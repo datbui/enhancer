@@ -22,16 +22,16 @@ def parse_function(proto):
     features = {
         HEIGHT: tf.FixedLenFeature([], tf.int64),
         WIDTH: tf.FixedLenFeature([], tf.int64),
-        HR_IMAGE: tf.FixedLenFeature([], tf.string),
-        INT2_IMAGE: tf.FixedLenFeature([], tf.string),
-        INT1_IMAGE: tf.FixedLenFeature([], tf.string),
+        HR_IMAGE: tf.FixedLenFeature([], tf.string),     # 2048x2048
+        INT2_IMAGE: tf.FixedLenFeature([], tf.string),   # 1024x1024
+        INT1_IMAGE: tf.FixedLenFeature([], tf.string),   # 512x512
         LR_IMAGE: tf.FixedLenFeature([], tf.string),
         FILENAME: tf.FixedLenFeature([], tf.string)
     }
     parsed_features = tf.parse_single_example(proto, features)
 
     lr_images = tf.reshape(tf.decode_raw(parsed_features[LR_IMAGE], tf.float32), tf.stack([256, 256, 3]))
-    hr_images = tf.reshape(tf.decode_raw(parsed_features[HR_IMAGE], tf.float32), tf.stack([FLAGS.image_size, FLAGS.image_size, 3]))
+    hr_images = tf.reshape(tf.decode_raw(parsed_features[INT1_IMAGE], tf.float32), tf.stack([FLAGS.image_size, FLAGS.image_size, 3]))
     names = parsed_features[FILENAME]
 
     return lr_images, hr_images, names
