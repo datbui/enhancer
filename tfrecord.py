@@ -45,12 +45,12 @@ def create_tfrecords(config=FLAGS):
 
     save_config(config.tfrecord_dir, config)
 
-    highres_files = load_files(os.path.join(config.data_dir, config.dataset, config.subset, 'Highres'), config.extension)
+    highres_files = load_files(os.path.join(config.data_dir, config.dataset, config.subset, 'highres'), config.extension)
     print("\nThere are %d files in %s dataset, subset %s\n" % (len(highres_files), config.dataset, config.subset))
     for file in highres_files:
         print(file)
         name = ntpath.basename(file).split('.')[0]
-        lowres_filename = os.path.join(config.data_dir, config.dataset, config.subset, 'Lowres', '%s.%s' % (name, config.extension))
+        lowres_filename = os.path.join(config.data_dir, config.dataset, config.subset, 'lowres', '%s.%s' % (name, config.extension))
         try:
             hr_image = get_image(file, config.image_size)
             lr_image = get_image(lowres_filename, 256)
