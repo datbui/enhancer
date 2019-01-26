@@ -1,15 +1,15 @@
 import tensorflow as tf
 
 flags = tf.app.flags
-flags.DEFINE_string("dataset", "images_cleaned", "The name of dataset [celebA, mnist, lsun ...]")
+flags.DEFINE_string("dataset", "rcnn_images", "The name of dataset [celebA, mnist, lsun ...]")
 flags.DEFINE_string("subset", "train", "The name of subset [train, validation, test]")
 flags.DEFINE_string("extension", "png", "The file extension [tif, jpg....]")
-flags.DEFINE_string("checkpoint_dir", "checkpoint", "Directory name to save the checkpoints [checkpoint]")
+flags.DEFINE_string("checkpoint_dir", "rcnn_checkpoint", "Directory name to save the checkpoints [checkpoint]")
 flags.DEFINE_string("summaries_dir", "summaries", "Directory name to save training summaries[summaries]")
 flags.DEFINE_string("log_dir", "logs", "Directory name to store logs [logs]")
 flags.DEFINE_string("output_dir", "outputs", "Directory name to store output images [outputs]")
 flags.DEFINE_string("data_dir", "data", "Directory name to download the train/test datasets [data]")
-flags.DEFINE_string("tfrecord_dir", "rcnn_tfrecords", "Directory name to store the TFRecord data [tfrecords]")
+flags.DEFINE_string("tfrecord_dir", "tfrecords", "Directory name to store the TFRecord data [tfrecords]")
 flags.DEFINE_integer("batch_size", 10, "The size of batch images [10]")
 flags.DEFINE_integer("image_size", 2048, "The size of image to use (will be center cropped) [256]")
 flags.DEFINE_integer("color_channels", 1, "The number of image color channels")

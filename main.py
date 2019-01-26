@@ -175,10 +175,10 @@ def run_testing(session, config=FLAGS):
     g1, g2, g3 = rcnn(tf_slice(tf_lr_image, 1), tf_slice(tf_int1_image, 1), tf_slice(tf_int2_image, 1))
     b1, b2, b3 = rcnn(tf_slice(tf_lr_image, 2), tf_slice(tf_int1_image, 2), tf_slice(tf_int2_image, 2))
     # tf_prediction = rcnn(slice(tf_lr_image, 2), slice(tf_int1_image, 2), slice(tf_int2_image, 2))
-    tf_prediction1 = tf.stack([tf.squeeze(r1, axis=3), tf.squeeze(g1, axis=3), tf.squeeze(b1, axis=3)], axis=3)
-    tf_prediction2 = tf.stack([tf.squeeze(r2, axis=3), tf.squeeze(g2, axis=3), tf.squeeze(b2, axis=3)], axis=3)
-    tf_prediction3 = tf.stack([tf.squeeze(r3, axis=3), tf.squeeze(g3, axis=3), tf.squeeze(b3, axis=3)], axis=3)
-    tf_prediction = (tf_prediction1, tf_prediction2, tf_prediction3)
+    # tf_prediction1 = tf.stack([tf.squeeze(r1, axis=3), tf.squeeze(g1, axis=3), tf.squeeze(b1, axis=3)], axis=3)
+    # tf_prediction2 = tf.stack([tf.squeeze(r2, axis=3), tf.squeeze(g2, axis=3), tf.squeeze(b2, axis=3)], axis=3)
+    tf_prediction = tf.stack([tf.squeeze(r3, axis=3), tf.squeeze(g3, axis=3), tf.squeeze(b3, axis=3)], axis=3)
+    # tf_prediction = (tf_prediction1, tf_prediction2, tf_prediction3)
     tf.initialize_all_variables().run()
 
     tf_predicted_mse = tf.losses.mean_squared_error(tf_hr_image_tensor, tf_prediction)
@@ -206,31 +206,19 @@ def run_testing(session, config=FLAGS):
                 (lr_image, _, _, hr_image, name) = next_element
                 name = str(name[0]).replace('b\'', '').replace('\'', '')
 
-                prediction1 = np.squeeze(prediction1)
-                prediction2 = np.squeeze(prediction2)
-                prediction3 = np.squeeze(prediction3)
+                # prediction1 = np.squeeze(prediction1)
+                # prediction2 = np.squeeze(prediction2)
+                # prediction3 = np.squeeze(prediction3)
                 re_image = np.squeeze(re_image)
                 hr_image = np.squeeze(hr_image)
 
-                # initial_nmi = normalized_mutual_info_score(hr_image.flatten(), re_image.flatten())
-                # nmi = normalized_mutual_info_score(hr_image.flatten(), prediction.flatten())
-
-                # initial_wsnr = wsnr(hr_image, re_image)
-                # _wsnr = wsnr(hr_image, prediction)
-
-                # initial_ifc = pbvif(hr_image, re_image)
-                # _ifc = pbvif(hr_image, prediction)
-
-                # initial_nqm = nqm(hr_image, re_image)
-                # _nqm = nqm(hr_image, prediction)
-
                 writer.writerows([[name, rmse, np.squeeze(psnr), np.squeeze(ssim), np.squeeze(msssim)]])
-                save_image(image=prediction1, path=os.path.join(config.output_dir, INT1, '%s.jpg' % name))
-                save_image(image=prediction2, path=os.path.join(config.output_dir, INT2, '%s.jpg' % name))
-                save_image(image=prediction3, path=os.path.join(config.output_dir, PREDICTION, '%s.jpg' % name))
-                save_image(image=re_image, path=os.path.join(config.output_dir, LOW_RESOLUTION, '%s.jpg' % name))
-                save_image(image=hr_image, path=os.path.join(config.output_dir, HIGH_RESOLUTION, '%s.jpg' % name))
-                save_output(lr_img=re_image, prediction=prediction3, hr_img=hr_image, path=os.path.join(config.output_dir, '%s.jpg' % name))
+                # save_image(image=prediction1, path=os.path.join(config.output_dir, INT1, '%s.jpg' % name))
+                # save_image(image=prediction2, path=os.path.join(config.output_dir, INT2, '%s.jpg' % name))
+                save_image(image=prediction, path=os.path.join(config.output_dir, PREDICTION, '%s.png' % name))
+                # save_image(image=re_image, path=os.path.join(config.output_dir, LOW_RESOLUTION, '%s.jpg' % name))
+                # save_image(image=hr_image, path=os.path.join(config.output_dir, HIGH_RESOLUTION, '%s.jpg' % name))
+                save_output(lr_img=re_image, prediction=prediction, hr_img=hr_image, path=os.path.join(config.output_dir, '%s.jpg' % name))
 
                 logging.info("Enhance resolution for %3.0d %s" % (count, name))
                 count = count + 1
