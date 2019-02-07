@@ -86,21 +86,21 @@ def cnn(lr_images, output_size, devices=['/device:CPU:0']):
     filters_shape = [2, 1, 3, 2, 1]
     filters = [64, 32, 16, 8, output_channels]
     channels = lr_images.get_shape().as_list()[3]
-    for d in devices:
-        with tf.device(d):
-            with tf.name_scope('weights'):
-                w1 = tf.get_variable(initializer=tf.random_normal([filters_shape[0], filters_shape[0], channels, filters[0]], stddev=1e-3), name='cnn_w1')
-                w2 = tf.get_variable(initializer=tf.random_normal([filters_shape[1], filters_shape[1], filters[0], filters[1]], stddev=1e-3), name='cnn_w2')
-                w3 = tf.get_variable(initializer=tf.random_normal([filters_shape[2], filters_shape[2], filters[1], filters[2]], stddev=1e-3), name='cnn_w3')
-                w4 = tf.get_variable(initializer=tf.random_normal([filters_shape[3], filters_shape[3], filters[2], filters[3]], stddev=1e-3), name='cnn_w4')
-                w5 = tf.get_variable(initializer=tf.random_normal([filters_shape[4], filters_shape[4], filters[3], filters[4]], stddev=1e-3), name='cnn_w5')
-            with tf.name_scope('biases'):
-                b1 = tf.get_variable(initializer=tf.zeros(filters[0]), name='cnn_b1')
-                b2 = tf.get_variable(initializer=tf.zeros(filters[1]), name='cnn_b2')
-                b3 = tf.get_variable(initializer=tf.zeros(filters[2]), name='cnn_b3')
-                b4 = tf.get_variable(initializer=tf.zeros(filters[3]), name='cnn_b4')
-                b5 = tf.get_variable(initializer=tf.zeros(filters[4]), name='cnn_b5')
-            with tf.name_scope('predictions'):
+    with tf.variable_scope('weights', reuse=tf.AUTO_REUSE):
+        w1 = tf.get_variable(initializer=tf.random_normal([filters_shape[0], filters_shape[0], channels, filters[0]], stddev=1e-3), name='cnn_w1')
+        w2 = tf.get_variable(initializer=tf.random_normal([filters_shape[1], filters_shape[1], filters[0], filters[1]], stddev=1e-3), name='cnn_w2')
+        w3 = tf.get_variable(initializer=tf.random_normal([filters_shape[2], filters_shape[2], filters[1], filters[2]], stddev=1e-3), name='cnn_w3')
+        w4 = tf.get_variable(initializer=tf.random_normal([filters_shape[3], filters_shape[3], filters[2], filters[3]], stddev=1e-3), name='cnn_w4')
+        w5 = tf.get_variable(initializer=tf.random_normal([filters_shape[4], filters_shape[4], filters[3], filters[4]], stddev=1e-3), name='cnn_w5')
+    with tf.variable_scope('biases', reuse=tf.AUTO_REUSE):
+        b1 = tf.get_variable(initializer=tf.zeros(filters[0]), name='cnn_b1')
+        b2 = tf.get_variable(initializer=tf.zeros(filters[1]), name='cnn_b2')
+        b3 = tf.get_variable(initializer=tf.zeros(filters[2]), name='cnn_b3')
+        b4 = tf.get_variable(initializer=tf.zeros(filters[3]), name='cnn_b4')
+        b5 = tf.get_variable(initializer=tf.zeros(filters[4]), name='cnn_b5')
+    with tf.variable_scope('predictions', reuse=tf.AUTO_REUSE):
+        for d in devices:
+            with tf.device(d):
                 conv1 = tf.nn.bias_add(conv(lr_images, w1), b1, name='conv_1')
                 conv1r = tf.nn.leaky_relu(conv1, name='relu_1')
                 conv2 = tf.nn.bias_add(conv(conv1r, w2), b2, name='conv_2')
@@ -112,6 +112,34 @@ def cnn(lr_images, output_size, devices=['/device:CPU:0']):
                 conv5 = tf.nn.bias_add(conv(conv4r, w5), b5, name='conv_5')
                 upscaled = tf.tanh(phase_shift(conv5, ratio))
                 predictions = upscaled if ratio > 1 else conv5
+    return predictions
+
+
+def escnn(lr_images, output_size, devices=['/device:CPU:0']):
+    size = lr_images.get_shape().as_list()[1]
+    ratio = int(output_size / size)
+    output_channels = ratio * ratio if ratio > 1 else ratio
+    filters_shape = [5, 3, 3]
+    filters = [64, 32, output_channels]
+    channels = lr_images.get_shape().as_list()[3]
+    with tf.variable_scope('weights', reuse=tf.AUTO_REUSE):
+        w1 = tf.get_variable(initializer=tf.random_normal([filters_shape[0], filters_shape[0], channels, filters[0]], stddev=1e-3), name='cnn_w1')
+        w2 = tf.get_variable(initializer=tf.random_normal([filters_shape[1], filters_shape[1], filters[0], filters[1]], stddev=1e-3), name='cnn_w2')
+        w3 = tf.get_variable(initializer=tf.random_normal([filters_shape[2], filters_shape[2], filters[1], filters[2]], stddev=1e-3), name='cnn_w3')
+    with tf.variable_scope('biases', reuse=tf.AUTO_REUSE):
+        b1 = tf.get_variable(initializer=tf.zeros(filters[0]), name='cnn_b1')
+        b2 = tf.get_variable(initializer=tf.zeros(filters[1]), name='cnn_b2')
+        b3 = tf.get_variable(initializer=tf.zeros(filters[2]), name='cnn_b3')
+    with tf.variable_scope('predictions', reuse=tf.AUTO_REUSE):
+        for d in devices:
+            with tf.device(d):
+                conv1 = tf.nn.bias_add(tf.nn.conv2d(lr_images, w1, strides=[1, 1, 1, 1], padding='SAME'), b1, name='conv_1')
+                conv1r = tf.nn.relu(conv1, name='relu_1')
+                conv2 = tf.nn.bias_add(tf.nn.conv2d(conv1r, w2, strides=[1, 1, 1, 1], padding='SAME'), b2, name='conv_2')
+                conv2r = tf.nn.relu(conv2, name='relu_2')
+                conv3 = tf.nn.bias_add(tf.nn.conv2d(conv2r, w3, strides=[1, 1, 1, 1], padding='SAME'), b3, name='conv_3')
+                upscaled = tf.tanh(phase_shift(conv3, ratio))
+                predictions = upscaled if ratio > 1 else conv3
     return predictions
 
 

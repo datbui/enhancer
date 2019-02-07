@@ -215,7 +215,7 @@ def run_testing(session, config=FLAGS):
                 writer.writerows([[name, rmse, np.squeeze(psnr), np.squeeze(ssim), np.squeeze(msssim)]])
                 # save_image(image=prediction1, path=os.path.join(config.output_dir, INT1, '%s.jpg' % name))
                 # save_image(image=prediction2, path=os.path.join(config.output_dir, INT2, '%s.jpg' % name))
-                save_image(image=prediction, path=os.path.join(config.output_dir, PREDICTION, '%s.png' % name))
+                save_image(image=prediction, path=os.path.join(config.output_dir, PREDICTION, '%s.jpg' % name))
                 # save_image(image=re_image, path=os.path.join(config.output_dir, LOW_RESOLUTION, '%s.jpg' % name))
                 # save_image(image=hr_image, path=os.path.join(config.output_dir, HIGH_RESOLUTION, '%s.jpg' % name))
                 save_output(lr_img=re_image, prediction=prediction, hr_img=hr_image, path=os.path.join(config.output_dir, '%s.jpg' % name))
