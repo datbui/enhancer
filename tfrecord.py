@@ -1,10 +1,12 @@
 import ntpath
 import os
+
 import tensorflow as tf
 
 from config import FLAGS
-from utils import FILENAME, HEIGHT, HR_IMAGE, LR_IMAGE, TFRECORD, WIDTH, get_image, get_tfrecord_files, load_files, save_config, INT1_IMAGE, INT2_IMAGE
+from utils import FILENAME, HEIGHT, HR_IMAGE, INT1_IMAGE, INT2_IMAGE, LR_IMAGE, TFRECORD, WIDTH, get_image, get_tfrecord_files, load_files, save_config
 
+res2name = {256: LR_IMAGE, 512: INT1_IMAGE, 1024: INT2_IMAGE, 2048: HR_IMAGE}
 
 def _bytes_feature(value):
     return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
@@ -30,8 +32,9 @@ def parse_function(proto):
     }
     parsed_features = tf.parse_single_example(proto, features)
 
-    lr_images = tf.reshape(tf.decode_raw(parsed_features[LR_IMAGE], tf.float32), tf.stack([256, 256, 3]))
-    hr_images = tf.reshape(tf.decode_raw(parsed_features[INT1_IMAGE], tf.float32), tf.stack([FLAGS.image_size, FLAGS.image_size, 3]))
+    lr_images = tf.reshape(tf.decode_raw(parsed_features[res2name[FLAGS.input_size]], tf.float32), tf.stack([FLAGS.input_size, FLAGS.input_size, 3]))
+    hr_images = tf.reshape(tf.decode_raw(parsed_features[HR_IMAGE], tf.float32), tf.stack([2048, 2048, 3]))
+    hr_images = tf.image.resize_images(hr_images, [FLAGS.image_size, FLAGS.image_size])
     names = parsed_features[FILENAME]
 
     return lr_images, hr_images, names
