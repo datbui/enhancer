@@ -144,18 +144,16 @@ def escnn(lr_images, output_size, devices=['/device:CPU:0']):
 
 
 def rcnn(in_images, inter1, inter2, devices=['/device:CPU:0']):
-    def hidden_layer(img1, img2, img3, w, wr, wt, b, number='1'):
-        h_x1 = tf.nn.leaky_relu(tf.nn.bias_add(conv(img1, w), b, name='h_x1_' + number))
+    def hidden_layer(img1, img2, img3, w1, w2, w3, wr1, wr2, b1, b2, b3, number='1'):
+        h_x1 = tf.nn.leaky_relu(tf.nn.bias_add(conv(img1, w1), b1, name='h_x1_' + number))
 
-        r_x2 = tf.image.resize_bicubic(conv(h_x1, wr), [512, 512])
-        t_x2 = tf.image.resize_bicubic(conv(img1, wt), [512, 512])
-        x2 = tf.add(conv(img2, w), tf.add(r_x2, t_x2))
-        h_x2 = tf.nn.leaky_relu(tf.nn.bias_add(x2, b, name='h_x2_' + number))
+        r_x2 = tf.image.resize_bicubic(conv(h_x1, wr1), [512, 512])
+        x2 = tf.add(conv(img2, w2), r_x2)
+        h_x2 = tf.nn.leaky_relu(tf.nn.bias_add(x2, b2, name='h_x2_' + number))
 
-        r_x3 = tf.image.resize_bicubic(conv(h_x2, wr), [1024, 1024])
-        t_x3 = tf.image.resize_bicubic(conv(img2, wt), [1024, 1024])
-        x3 = tf.add(conv(img3, w), tf.add(r_x3, t_x3))
-        h_x3 = tf.nn.leaky_relu(tf.nn.bias_add(x3, b, name='h_x3_' + number))
+        r_x3 = tf.image.resize_bicubic(conv(h_x2, wr2), [1024, 1024])
+        x3 = tf.add(conv(img3, w3), r_x3)
+        h_x3 = tf.nn.leaky_relu(tf.nn.bias_add(x3, b3, name='h_x3_' + number))
 
         return h_x1, h_x2, h_x3
 
@@ -164,39 +162,48 @@ def rcnn(in_images, inter1, inter2, devices=['/device:CPU:0']):
     fnums = [32, 16, 4]
 
     with tf.variable_scope('first_layer', reuse=tf.AUTO_REUSE):
-        for d in devices:
-            with tf.device(d):
-                # first hidden layer
-                w1 = tf.get_variable(initializer=tf.random_normal([fshape[0], fshape[0], channels, fnums[0]], stddev=1e-3), name='cnn_w1')
-                wr1 = tf.get_variable(initializer=tf.random_normal([1, 1, fnums[0], fnums[0]], stddev=1e-3), name='cnn_wr1')
-                wt1 = tf.get_variable(initializer=tf.random_normal([fshape[0], fshape[0], channels, fnums[0]], stddev=1e-3), name='cnn_wt1')
-                b1 = tf.get_variable(initializer=tf.zeros(fnums[0]), name='cnn_b1')
+        # first hidden layer
+        w11 = tf.get_variable(initializer=tf.random_normal([fshape[0], fshape[0], channels, fnums[0]], stddev=1e-3), name='cnn_w11')
+        w12 = tf.get_variable(initializer=tf.random_normal([fshape[0], fshape[0], channels, fnums[0]], stddev=1e-3), name='cnn_w12')
+        w13 = tf.get_variable(initializer=tf.random_normal([fshape[0], fshape[0], channels, fnums[0]], stddev=1e-3), name='cnn_w13')
+        wr11 = tf.get_variable(initializer=tf.random_normal([1, 1, fnums[0], fnums[0]], stddev=1e-3), name='cnn_wr11')
+        wr12 = tf.get_variable(initializer=tf.random_normal([1, 1, fnums[0], fnums[0]], stddev=1e-3), name='cnn_wr12')
+        # wt1 = tf.get_variable(initializer=tf.random_normal([fshape[0], fshape[0], channels, fnums[0]], stddev=1e-3), name='cnn_wt1')
+        b11 = tf.get_variable(initializer=tf.zeros(fnums[0]), name='cnn_b11')
+        b12 = tf.get_variable(initializer=tf.zeros(fnums[0]), name='cnn_b12')
+        b13 = tf.get_variable(initializer=tf.zeros(fnums[0]), name='cnn_b13')
 
     with tf.variable_scope('second_layer', reuse=tf.AUTO_REUSE):
-        for d in devices:
-            with tf.device(d):
-                # second hidden layer
-                w2 = tf.get_variable(initializer=tf.random_normal([fshape[1], fshape[1], fnums[0], fnums[1]], stddev=1e-3), name='cnn_w2')
-                wr2 = tf.get_variable(initializer=tf.random_normal([1, 1, fnums[1], fnums[1]], stddev=1e-3), name='cnn_wr2')
-                wt2 = tf.get_variable(initializer=tf.random_normal([fshape[1], fshape[1], fnums[0], fnums[1]], stddev=1e-3), name='cnn_wt2')
-                b2 = tf.get_variable(initializer=tf.zeros(fnums[1]), name='cnn_b2')
+        # second hidden layer
+        w21 = tf.get_variable(initializer=tf.random_normal([fshape[1], fshape[1], fnums[0], fnums[1]], stddev=1e-3), name='cnn_w21')
+        w22 = tf.get_variable(initializer=tf.random_normal([fshape[1], fshape[1], fnums[0], fnums[1]], stddev=1e-3), name='cnn_w22')
+        w23 = tf.get_variable(initializer=tf.random_normal([fshape[1], fshape[1], fnums[0], fnums[1]], stddev=1e-3), name='cnn_w23')
+        wr21 = tf.get_variable(initializer=tf.random_normal([1, 1, fnums[1], fnums[1]], stddev=1e-3), name='cnn_wr21')
+        wr22 = tf.get_variable(initializer=tf.random_normal([1, 1, fnums[1], fnums[1]], stddev=1e-3), name='cnn_wr22')
+        # wt2 = tf.get_variable(initializer=tf.random_normal([fshape[1], fshape[1], fnums[0], fnums[1]], stddev=1e-3), name='cnn_wt2')
+        b21 = tf.get_variable(initializer=tf.zeros(fnums[1]), name='cnn_b21')
+        b22 = tf.get_variable(initializer=tf.zeros(fnums[1]), name='cnn_b22')
+        b23 = tf.get_variable(initializer=tf.zeros(fnums[1]), name='cnn_b23')
 
     with tf.variable_scope('third_layer', reuse=tf.AUTO_REUSE):
-        for d in devices:
-            with tf.device(d):
-                # third hidden layer
-                w3 = tf.get_variable(initializer=tf.random_normal([fshape[2], fshape[2], fnums[1], fnums[2]], stddev=1e-3), name='cnn_w3')
-                wr3 = tf.get_variable(initializer=tf.random_normal([1, 1, fnums[2], fnums[2]], stddev=1e-3), name='cnn_wr3')
-                wt3 = tf.get_variable(initializer=tf.random_normal([fshape[2], fshape[2], fnums[1], fnums[2]], stddev=1e-3), name='cnn_wt3')
-                b3 = tf.get_variable(initializer=tf.zeros(fnums[2]), name='cnn_b3')
+        # third hidden layer
+        w31 = tf.get_variable(initializer=tf.random_normal([fshape[2], fshape[2], fnums[1], fnums[2]], stddev=1e-3), name='cnn_w31')
+        w32 = tf.get_variable(initializer=tf.random_normal([fshape[2], fshape[2], fnums[1], fnums[2]], stddev=1e-3), name='cnn_w32')
+        w33 = tf.get_variable(initializer=tf.random_normal([fshape[2], fshape[2], fnums[1], fnums[2]], stddev=1e-3), name='cnn_w33')
+        wr31 = tf.get_variable(initializer=tf.random_normal([1, 1, fnums[2], fnums[2]], stddev=1e-3), name='cnn_wr31')
+        wr32 = tf.get_variable(initializer=tf.random_normal([1, 1, fnums[2], fnums[2]], stddev=1e-3), name='cnn_wr32')
+        # wt3 = tf.get_variable(initializer=tf.random_normal([fshape[2], fshape[2], fnums[1], fnums[2]], stddev=1e-3), name='cnn_wt3')
+        b31 = tf.get_variable(initializer=tf.zeros(fnums[2]), name='cnn_b31')
+        b32 = tf.get_variable(initializer=tf.zeros(fnums[2]), name='cnn_b32')
+        b33 = tf.get_variable(initializer=tf.zeros(fnums[2]), name='cnn_b33')
 
     for d in devices:
         with tf.device(d):
-            l1_h1, l1_h2, l1_h3 = hidden_layer(in_images, inter1, inter2, w1, wr1, wt1, b1)
+            l1_h1, l1_h2, l1_h3 = hidden_layer(in_images, inter1, inter2, w11, w12, w13, wr11, wr12, b11, b12, b13)
 
-            l2_h1, l2_h2, l2_h3 = hidden_layer(l1_h1, l1_h2, l1_h3, w2, wr2, wt2, b2, '2')
+            l2_h1, l2_h2, l2_h3 = hidden_layer(l1_h1, l1_h2, l1_h3, w21, w22, w23, wr21, wr22, b21, b22, b23, '2')
 
-            h1, h2, h3 = hidden_layer(l2_h1, l2_h2, l2_h3, w3, wr3, wt3, b3, '3')
+            h1, h2, h3 = hidden_layer(l2_h1, l2_h2, l2_h3, w31, w32, w33, wr31, wr32, b31, b32, b33, '3')
 
             p1 = tf.tanh(phase_shift(h1, 2))
             p2 = tf.tanh(phase_shift(h2, 2))
