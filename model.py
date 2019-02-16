@@ -148,15 +148,15 @@ def escnn(lr_images, output_size, devices=['/device:CPU:0']):
 
 
 def rcnn(in_images, inter1, inter2, devices=['/device:CPU:0']):
-    def hidden_layer(img1, img2, img3, w1, w2, w3, wr1, wr2, b1, b2, b3, w1up, w2up, number='1'):
+    def hidden_layer(img1, img2, img3, w1, w2, w3, wr1, wr2, b1, b2, b3, w1up, w2up, b1up, b2up, number='1'):
         h_x1 = tf.nn.leaky_relu(tf.nn.bias_add(conv(img1, w1), b1, name='h_x1_' + number))
 
-        n = tf.nn.relu(conv(tf.nn.relu(conv(h_x1, wr1)), w1up))
+        n = tf.nn.leaky_relu(tf.nn.bias_add(conv(tf.nn.relu(conv(h_x1, wr1)), w1up), b1up))
         r_x2 = subpixel(n)
         x2 = tf.add(conv(img2, w2), r_x2)
         h_x2 = tf.nn.leaky_relu(tf.nn.bias_add(x2, b2, name='h_x2_' + number))
 
-        n = tf.nn.relu(conv(tf.nn.relu(conv(h_x2, wr2)), w2up))
+        n = tf.nn.leaky_relu(tf.nn.bias_add(conv(tf.nn.relu(conv(h_x2, wr2)), w2up), b2up))
         r_x3 = subpixel(n)
         x3 = tf.add(conv(img3, w3), r_x3)
         h_x3 = tf.nn.leaky_relu(tf.nn.bias_add(x3, b3, name='h_x3_' + number))
@@ -165,7 +165,7 @@ def rcnn(in_images, inter1, inter2, devices=['/device:CPU:0']):
 
     channels = in_images.get_shape().as_list()[3]
     fshape = [3, 1, 2]
-    fnums = [32, 16, 4]
+    fnums = [64, 32, 4]
 
     with tf.variable_scope('first_layer', reuse=tf.AUTO_REUSE):
         # first hidden layer
@@ -178,9 +178,11 @@ def rcnn(in_images, inter1, inter2, devices=['/device:CPU:0']):
         b11 = tf.get_variable(initializer=tf.zeros(fnums[0]), name='cnn_b11')
         b12 = tf.get_variable(initializer=tf.zeros(fnums[0]), name='cnn_b12')
         b13 = tf.get_variable(initializer=tf.zeros(fnums[0]), name='cnn_b13')
-        #upscaling
-        w11up = tf.get_variable(initializer=tf.random_normal([fshape[0], fshape[0], fnums[0], fnums[0]*4], stddev=1e-3), name='cnn_w11up')
+        # upscaling
+        w11up = tf.get_variable(initializer=tf.random_normal([fshape[0], fshape[0], fnums[0], fnums[0] * 4], stddev=1e-3), name='cnn_w11up')
         w12up = tf.get_variable(initializer=tf.random_normal([fshape[0], fshape[0], fnums[0], fnums[0] * 4], stddev=1e-3), name='cnn_w12up')
+        b11up = tf.get_variable(initializer=tf.zeros(fnums[0] * 4), name='cnn_b11up')
+        b12up = tf.get_variable(initializer=tf.zeros(fnums[0] * 4), name='cnn_b12up')
 
     with tf.variable_scope('second_layer', reuse=tf.AUTO_REUSE):
         # second hidden layer
@@ -196,6 +198,8 @@ def rcnn(in_images, inter1, inter2, devices=['/device:CPU:0']):
         # upscaling
         w21up = tf.get_variable(initializer=tf.random_normal([fshape[1], fshape[1], fnums[1], fnums[1] * 4], stddev=1e-3), name='cnn_w21up')
         w22up = tf.get_variable(initializer=tf.random_normal([fshape[1], fshape[1], fnums[1], fnums[1] * 4], stddev=1e-3), name='cnn_w22up')
+        b21up = tf.get_variable(initializer=tf.zeros(fnums[1] * 4), name='cnn_b21up')
+        b22up = tf.get_variable(initializer=tf.zeros(fnums[1] * 4), name='cnn_b22up')
 
     with tf.variable_scope('third_layer', reuse=tf.AUTO_REUSE):
         # third hidden layer
@@ -211,14 +215,16 @@ def rcnn(in_images, inter1, inter2, devices=['/device:CPU:0']):
         # upscaling
         w31up = tf.get_variable(initializer=tf.random_normal([fshape[2], fshape[2], fnums[2], fnums[2] * 4], stddev=1e-3), name='cnn_w31up')
         w32up = tf.get_variable(initializer=tf.random_normal([fshape[2], fshape[2], fnums[2], fnums[2] * 4], stddev=1e-3), name='cnn_w32up')
+        b31up = tf.get_variable(initializer=tf.zeros(fnums[2] * 4), name='cnn_b31up')
+        b32up = tf.get_variable(initializer=tf.zeros(fnums[2] * 4), name='cnn_b32up')
 
     for d in devices:
         with tf.device(d):
-            l1_h1, l1_h2, l1_h3 = hidden_layer(in_images, inter1, inter2, w11, w12, w13, wr11, wr12, b11, b12, b13, w11up, w12up)
+            l1_h1, l1_h2, l1_h3 = hidden_layer(in_images, inter1, inter2, w11, w12, w13, wr11, wr12, b11, b12, b13, w11up, w12up, b11up, b12up,)
 
-            l2_h1, l2_h2, l2_h3 = hidden_layer(l1_h1, l1_h2, l1_h3, w21, w22, w23, wr21, wr22, b21, b22, b23, w21up, w22up, '2')
+            l2_h1, l2_h2, l2_h3 = hidden_layer(l1_h1, l1_h2, l1_h3, w21, w22, w23, wr21, wr22, b21, b22, b23, w21up, w22up, b21up, b22up, '2')
 
-            h1, h2, h3 = hidden_layer(l2_h1, l2_h2, l2_h3, w31, w32, w33, wr31, wr32, b31, b32, b33, w31up, w32up, '3')
+            h1, h2, h3 = hidden_layer(l2_h1, l2_h2, l2_h3, w31, w32, w33, wr31, wr32, b31, b32, b33, w31up, w32up, b31up, b32up, '3')
 
             p1 = tf.tanh(phase_shift(h1, 2))
             p2 = tf.tanh(phase_shift(h2, 2))

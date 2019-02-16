@@ -125,7 +125,7 @@ def run_training(session, config=FLAGS):
         device=config.device,
         epoch=config.epoch,
         batch_size=config.batch_size,
-        min_eval_frequency=100,
+        min_eval_frequency=1000,
         train_steps=None,  # Use train feeder until its empty
         eval_steps=1,  # Use 1 step of evaluation feeder
         train_files=train_files
@@ -239,6 +239,8 @@ def main(_):
 
     # start the session
     with tf.Session(config=tf.ConfigProto(allow_soft_placement=True, log_device_placement=True)) as sess:
+        print(' devices ' + tf.test.gpu_device_name())
+        print(' Is gpu  ' + str(tf.test.is_gpu_available()))
         if FLAGS.is_train:
             if not os.path.exists(FLAGS.checkpoint_dir):
                 os.makedirs(FLAGS.checkpoint_dir)
